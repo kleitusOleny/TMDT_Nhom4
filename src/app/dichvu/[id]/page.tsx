@@ -48,7 +48,7 @@ interface DichVuData {
   };
 }
 
-export default function DichVuDetailPage() {
+function DichVuContent({ serviceId }: { serviceId: string }) {
   const [dichVu, setDichVu] = useState<DichVuData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,14 +65,18 @@ export default function DichVuDetailPage() {
 
   useEffect(() => {
     async function fetchDichVu() {
+      if (!serviceId) return;
+
       try {
         setIsLoading(true);
-        // Gọi API lấy dịch vụ ID 1 từ database
-        const res = await fetch("/api/dich-vu/1");
+        setError(null);
+
+        // Gọi API lấy dịch vụ theo dynamic ID từ database
+        const res = await fetch(`/api/dich-vu/${serviceId}`);
         const json = await res.json();
 
         if (!res.ok || !json.success) {
-          throw new Error(json.message || "Không thể tải dữ liệu dịch vụ.");
+          throw new Error(json.message || `Không tìm thấy dịch vụ #${serviceId}.`);
         }
 
         const data: DichVuData = json.data;
@@ -86,7 +90,7 @@ export default function DichVuDetailPage() {
           setSelectedPricingId(data.pricingTable[0].id);
         }
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : "Đã xảy ra lỗi";
+        const msg = err instanceof Error ? err.message : "Đã xảy ra lỗi khi tải dữ liệu";
         setError(msg);
       } finally {
         setIsLoading(false);
@@ -94,7 +98,7 @@ export default function DichVuDetailPage() {
     }
 
     fetchDichVu();
-  }, []);
+  }, [serviceId]);
 
   const currentOption =
     dichVu?.pricingTable?.find((p) => p.id === selectedPricingId) ||
@@ -109,7 +113,7 @@ export default function DichVuDetailPage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-white text-slate-800">
         <Loader2 className="w-10 h-10 animate-spin text-blue-600 mb-4" />
-        <p className="text-sm font-medium text-slate-600">Đang tải dữ liệu dịch vụ từ máy chủ...</p>
+        <p className="text-sm font-medium text-slate-600">Đang tải thông tin dịch vụ #{serviceId} từ cơ sở dữ liệu...</p>
       </div>
     );
   }
@@ -148,7 +152,7 @@ export default function DichVuDetailPage() {
             <Link href="/" className="hover:text-blue-600 transition">
               Trang chủ
             </Link>
-            <Link href="/dich-vu" className="text-blue-600 font-semibold hover:text-blue-700 transition">
+            <Link href="/dichvu/1" className="text-blue-600 font-semibold hover:text-blue-700 transition">
               Dịch vụ
             </Link>
             <Link href="/#providers" className="hover:text-blue-600 transition">
@@ -189,7 +193,7 @@ export default function DichVuDetailPage() {
             Trang chủ
           </Link>
           <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-          <Link href="/dich-vu" className="hover:text-blue-600 transition">
+          <Link href="/dichvu/1" className="hover:text-blue-600 transition">
             Dịch vụ
           </Link>
           <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
@@ -491,5 +495,29 @@ export default function DichVuDetailPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+function DichVuParamsResolver({ params }: { params: Promise<{ id: string }> }) {
+  const unwrappedParams = React.use(params);
+  return <DichVuContent serviceId={unwrappedParams.id} />;
+}
+
+export default function DichVuDynamicDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="min-h-screen flex flex-col items-center justify-center bg-white text-slate-800">
+          <Loader2 className="w-10 h-10 animate-spin text-blue-600 mb-4" />
+          <p className="text-sm font-medium text-slate-600">Đang tải chi tiết dịch vụ...</p>
+        </div>
+      }
+    >
+      <DichVuParamsResolver params={params} />
+    </React.Suspense>
   );
 }
