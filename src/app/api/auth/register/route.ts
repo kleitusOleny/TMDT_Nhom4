@@ -65,7 +65,8 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const { password: _, ...userData } = newUser;
+    const { password: _password, ...userData } = newUser;
+    void _password;
 
     return NextResponse.json(
       {
@@ -75,10 +76,11 @@ export async function POST(req: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errMessage = error instanceof Error ? error.message : "Lỗi không xác định";
     console.error("Register API Error:", error);
     return NextResponse.json(
-      { message: "Không thể tạo tài khoản", error: error?.message },
+      { message: "Không thể tạo tài khoản", error: errMessage },
       { status: 500 }
     );
   }

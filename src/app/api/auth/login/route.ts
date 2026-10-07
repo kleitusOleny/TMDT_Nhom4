@@ -49,7 +49,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Đăng nhập thành công, loại bỏ mật khẩu khi trả về
-    const { password: _, ...userData } = user;
+    const { password: _password, ...userData } = user;
+    void _password;
 
     const response = NextResponse.json(
       {
@@ -69,12 +70,13 @@ export async function POST(req: NextRequest) {
     });
 
     return response;
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errMessage = error instanceof Error ? error.message : "Lỗi không xác định";
     console.error("Login API Error:", error);
     return NextResponse.json(
       { 
         message: "Lỗi kết nối cơ sở dữ liệu. Vui lòng kiểm tra MySQL và chuỗi kết nối DATABASE_URL.",
-        error: error?.message 
+        error: errMessage 
       },
       { status: 500 }
     );

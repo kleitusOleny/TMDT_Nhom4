@@ -7,7 +7,6 @@ import {
   Sparkles,
   MapPin,
   Calendar,
-  Clock,
   Search,
   Star,
   CheckCircle2,
@@ -16,16 +15,12 @@ import {
   DollarSign,
   Award,
   ChevronRight,
-  ArrowRight,
   Home,
   Building2,
   Factory,
   Layers,
   Sparkle,
   Fan,
-  Phone,
-  Mail,
-  Send,
 } from "lucide-react";
 
 export default function CleanMateHome() {

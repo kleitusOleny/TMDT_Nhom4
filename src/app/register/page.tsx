@@ -34,13 +34,6 @@ export default function RegisterPage() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  const [maxDate, setMaxDate] = useState("");
-
-  React.useEffect(() => {
-    setMaxDate(new Date().toISOString().split("T")[0]);
-  }, []);
-
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -127,8 +120,9 @@ export default function RegisterPage() {
       setTimeout(() => {
         router.push("/login");
       }, 1500);
-    } catch (err: any) {
-      setErrorMessage(err?.message || "Đã xảy ra lỗi, vui lòng thử lại.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Đã xảy ra lỗi, vui lòng thử lại.";
+      setErrorMessage(msg);
     } finally {
       setIsLoading(false);
     }
@@ -238,7 +232,6 @@ export default function RegisterPage() {
                   type="date"
                   value={dateOfBirth}
                   onChange={(e) => setDateOfBirth(e.target.value)}
-                  max={maxDate}
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition cursor-pointer"
                   disabled={isLoading}
                 />

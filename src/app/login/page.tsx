@@ -70,8 +70,9 @@ export default function LoginPage() {
         router.push("/");
         router.refresh();
       }, 1000);
-    } catch (err: any) {
-      setErrorMessage(err?.message || "Đã xảy ra lỗi, vui lòng thử lại.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Đã xảy ra lỗi, vui lòng thử lại.";
+      setErrorMessage(msg);
     } finally {
       setIsLoading(false);
     }
