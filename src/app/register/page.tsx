@@ -53,7 +53,7 @@ export default function RegisterPage() {
     // Kiểm tra Số điện thoại bắt buộc
     const cleanPhone = phone.trim();
     if (!cleanPhone) {
-      setErrorMessage("Vui lòng nhập Số điện thoại (bắt buộc).");
+      setErrorMessage("Vui lòng nhập Số điện thoại.");
       return;
     }
 
@@ -74,7 +74,7 @@ export default function RegisterPage() {
       }
     }
 
-    // Kiểm tra Ngày sinh bắt buộc
+    // Kiểm tra Ngày sinh
     if (!dateOfBirth) {
       setErrorMessage("Vui lòng chọn Ngày tháng năm sinh.");
       return;
@@ -157,7 +157,7 @@ export default function RegisterPage() {
               <Gift className="w-3.5 h-3.5 text-blue-600" /> Tặng voucher 15% cho thành viên mới
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Tạo tài khoản CleanMate ✨
+              Tạo tài khoản CleanMate
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 mt-1.5">
               Vui lòng điền thông tin để đăng ký dịch vụ vệ sinh và nhận hỗ trợ tận tâm.
@@ -207,7 +207,6 @@ export default function RegisterPage() {
                 <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
                   Số điện thoại <span className="text-rose-500">*</span>
                 </label>
-                <span className="text-[11px] font-semibold text-rose-500">Bắt buộc</span>
               </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -230,7 +229,6 @@ export default function RegisterPage() {
                 <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
                   Ngày tháng năm sinh <span className="text-rose-500">*</span>
                 </label>
-                <span className="text-[11px] font-semibold text-rose-500">Bắt buộc</span>
               </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -253,7 +251,7 @@ export default function RegisterPage() {
                 <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
                   Email
                 </label>
-                <span className="text-[11px] text-slate-400">Tùy chọn (Optional)</span>
+
               </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -263,7 +261,7 @@ export default function RegisterPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@example.com (không bắt buộc)"
+                  placeholder="name@example.com"
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"
                   disabled={isLoading}
                 />
@@ -409,7 +407,8 @@ export default function RegisterPage() {
         {/* Nội dung nổi bật bên phải */}
         <div className="relative z-10 max-w-xl mx-auto my-auto text-center lg:text-left">
           <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-snug mb-6 text-white">
-            Nhà sạch tinh tươm, <span className="text-blue-400">cuộc sống thảnh thơi</span>
+            Nhà sạch tinh tươm, <br/>
+              <span className="text-blue-400">cuộc sống thảnh thơi</span>
           </h2>
           <p className="text-sm sm:text-base text-slate-300 leading-relaxed mb-8">
             Đăng ký tài khoản ngay hôm nay để trải nghiệm dịch vụ giúp việc, dọn dẹp vệ sinh chuẩn 5 sao với giá minh bạch và đội ngũ tận tâm.
