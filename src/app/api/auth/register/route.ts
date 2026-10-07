@@ -1,54 +1,72 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/src/lib/prisma";
 import bcrypt from "bcryptjs";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { identifier, password, fullName } = body;
+    const { phone, email, password, fullName, dateOfBirth } = body;
 
-    if (!identifier || !password) {
+    // Số điện thoại và mật khẩu là bắt buộc
+    if (!phone || !password) {
       return NextResponse.json(
-        { message: "Vui lòng nhập Email / Số điện thoại và Mật khẩu" },
+        { message: "Vui lòng nhập Số điện thoại và Mật khẩu" },
         { status: 400 }
       );
     }
 
-    const trimmedIdentifier = identifier.trim();
-    const isEmail = trimmedIdentifier.includes("@");
+    const trimmedPhone = String(phone).trim();
+    const trimmedEmail = email && typeof email === "string" && email.trim().length > 0 ? email.trim() : null;
 
-    const email = isEmail ? trimmedIdentifier : null;
-    const phone = !isEmail ? trimmedIdentifier : null;
-
-    // Kiểm tra tài khoản đã tồn tại chưa
-    const existing = await prisma.user.findFirst({
-      where: {
-        OR: [
-          ...(email ? [{ email }] : []),
-          ...(phone ? [{ phone }] : []),
-        ],
-      },
+    // Kiểm tra số điện thoại đã tồn tại chưa
+    const existingPhone = await prisma.user.findUnique({
+      where: { phone: trimmedPhone },
     });
 
-    if (existing) {
+    if (existingPhone) {
       return NextResponse.json(
-        { message: "Email hoặc Số điện thoại này đã được sử dụng" },
+        { message: "Số điện thoại này đã được sử dụng" },
         { status: 409 }
       );
+    }
+
+    // Nếu có email thì kiểm tra email đã tồn tại chưa
+    if (trimmedEmail) {
+      const existingEmail = await prisma.user.findUnique({
+        where: { email: trimmedEmail },
+      });
+
+      if (existingEmail) {
+        return NextResponse.json(
+          { message: "Email này đã được sử dụng" },
+          { status: 409 }
+        );
+      }
+    }
+
+    // Xử lý ngày tháng năm sinh
+    let parsedDob: Date | null = null;
+    if (dateOfBirth) {
+      const d = new Date(dateOfBirth);
+      if (!isNaN(d.getTime())) {
+        parsedDob = d;
+      }
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = await prisma.user.create({
       data: {
-        email,
-        phone,
+        phone: trimmedPhone,
+        email: trimmedEmail,
         password: hashedPassword,
-        fullName: fullName || (isEmail ? email?.split("@")[0] : `User_${phone?.slice(-4)}`),
+        fullName: fullName?.trim() || `User_${trimmedPhone.slice(-4)}`,
+        dateOfBirth: parsedDob,
       },
     });
 
-    const { password: _, ...userData } = newUser;
+    const { password: _password, ...userData } = newUser;
+    void _password;
 
     return NextResponse.json(
       {
@@ -58,10 +76,11 @@ export async function POST(req: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errMessage = error instanceof Error ? error.message : "Lỗi không xác định";
     console.error("Register API Error:", error);
     return NextResponse.json(
-      { message: "Không thể tạo tài khoản", error: error?.message },
+      { message: "Không thể tạo tài khoản", error: errMessage },
       { status: 500 }
     );
   }

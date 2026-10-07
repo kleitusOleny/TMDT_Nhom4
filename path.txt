@@ -1,0 +1,51 @@
+================================================================================
+                     DANH SÁCH ĐƯỜNG DẪN DỰ ÁN (PROJECT PATHS)
+================================================================================
+
+1. WEB ROUTES (Giao diện người dùng)
+--------------------------------------------------------------------------------
+- Trang chủ (Home):
+  URL: /
+  File: src/app/page.tsx
+
+- Trang Đăng nhập (Login):
+  URL: /login
+  File: src/app/login/page.tsx
+
+- Trang Đăng ký (Register):
+  URL: /register
+  File: src/app/register/page.tsx
+
+- Trang Not Found (404):
+  URL: /_not-found
+  File: Next.js default / Custom error handler
+
+
+2. API ROUTES (Endpoints xử lý dữ liệu)
+--------------------------------------------------------------------------------
+- Đăng nhập (Auth Login):
+  URL: /api/auth/login
+  Method: POST
+  File: src/app/api/auth/login/route.ts
+  Mô tả: Xác thực tài khoản người dùng qua Email hoặc Số điện thoại, kiểm tra mật khẩu (bcrypt), tạo session cookie.
+  Body (JSON):
+    {
+      "identifier": "string (email hoặc số điện thoại)",
+      "password": "string",
+      "rememberMe": boolean (optional)
+    }
+
+- Đăng ký (Auth Register):
+  URL: /api/auth/register
+  Method: POST
+  File: src/app/api/auth/register/route.ts
+  Mô tả: Đăng ký tài khoản mới với Số điện thoại (bắt buộc), Ngày sinh (bắt buộc), Mật khẩu (bắt buộc), Email (tùy chọn), lưu vào MySQL qua Prisma với id tự tăng (autoincrement).
+  Body (JSON):
+    {
+      "phone": "string (bắt buộc, số điện thoại)",
+      "password": "string (bắt buộc, tối thiểu 6 ký tự)",
+      "dateOfBirth": "string (bắt buộc, YYYY-MM-DD)",
+      "email": "string | null (tùy chọn, optional)",
+      "fullName": "string (tùy chọn)"
+    }
+================================================================================

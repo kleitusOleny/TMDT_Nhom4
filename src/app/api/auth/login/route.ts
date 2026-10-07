@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/src/lib/prisma";
 import bcrypt from "bcryptjs";
 
@@ -49,7 +49,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Đăng nhập thành công, loại bỏ mật khẩu khi trả về
-    const { password: _, ...userData } = user;
+    const { password: _password, ...userData } = user;
+    void _password;
 
     const response = NextResponse.json(
       {
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest) {
     );
 
     // Lưu cookie phiên đăng nhập
-    response.cookies.set("cleanmate_session", user.id, {
+    response.cookies.set("cleanmate_session", String(user.id), {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       maxAge: rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24, // 30 ngày nếu tick ghi nhớ, mặc định 1 ngày
@@ -69,12 +70,13 @@ export async function POST(req: NextRequest) {
     });
 
     return response;
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errMessage = error instanceof Error ? error.message : "Lỗi không xác định";
     console.error("Login API Error:", error);
     return NextResponse.json(
       { 
         message: "Lỗi kết nối cơ sở dữ liệu. Vui lòng kiểm tra MySQL và chuỗi kết nối DATABASE_URL.",
-        error: error?.message 
+        error: errMessage 
       },
       { status: 500 }
     );
