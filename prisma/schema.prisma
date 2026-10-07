@@ -21,4 +21,40 @@ model User {
   dateOfBirth DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  shops       Shop[]
 }
+
+model Shop {
+  id          Int       @id @default(autoincrement())
+  name        String
+  slug        String    @unique
+  isVerified  Boolean   @default(true)
+  rating      Float     @default(5.0)
+  totalReviews Int      @default(0)
+  area        String?
+  ownerId     Int
+  owner       User      @relation(fields: [ownerId], references: [id])
+  dichVuList  DichVu[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model DichVu {
+  id             Int       @id @default(autoincrement())
+  title          String
+  slug           String    @unique
+  description    String    @db.Text
+  details        Json?     // Danh sách các mục công việc chi tiết
+  priceStart     Decimal   // Giá khởi điểm hiển thị
+  pricingTable   Json?     // Bảng giá cụ thể (giá cố định, theo m2, theo giờ, trọn gói)
+  images         Json      // Mảng đường dẫn ảnh
+  rating         Float     @default(5.0)
+  totalReviews   Int       @default(0)
+  duration       String?   // Thời gian thực hiện (vd: 2-4 giờ)
+  serviceArea    String?   // Khu vực phục vụ (vd: Quận 1, 2, 3, 7, Thủ Đức)
+  shopId         Int
+  shop           Shop      @relation(fields: [shopId], references: [id])
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+

@@ -16,6 +16,10 @@
   URL: /register
   File: src/app/register/page.tsx
 
+- Trang Chi tiết Dịch vụ (Service Detail):
+  URL: /dich-vu
+  File: src/app/dich-vu/page.tsx
+
 - Trang Not Found (404):
   URL: /_not-found
   File: Next.js default / Custom error handler
@@ -48,4 +52,10 @@
       "email": "string | null (tùy chọn, optional)",
       "fullName": "string (tùy chọn)"
     }
+
+- Chi tiết Dịch vụ (Get Service Detail):
+  URL: /api/dich-vu/[id]
+  Method: GET
+  File: src/app/api/dich-vu/[id]/route.ts
+  Mô tả: Lấy thông tin chi tiết dịch vụ vệ sinh (bảng giá, mô tả, checklist công việc, thông tin gian hàng/shop) từ bảng `DichVu`.
 ================================================================================
