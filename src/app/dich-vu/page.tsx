@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -12,68 +12,123 @@ import {
   Calendar,
   ChevronRight,
   ShieldCheck,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 
+interface PricingOption {
+  id: string;
+  title: string;
+  sub: string;
+  price: number;
+  unit: string;
+}
+
+interface DichVuData {
+  id: number;
+  title: string;
+  slug: string;
+  description: string;
+  details: string[];
+  priceStart: number;
+  pricingTable: PricingOption[];
+  images: string[];
+  rating: number;
+  totalReviews: number;
+  duration: string;
+  serviceArea: string;
+  shop: {
+    id: number;
+    name: string;
+    slug: string;
+    isVerified: boolean;
+    rating: number;
+    totalReviews: number;
+    area: string | null;
+  };
+}
+
 export default function DichVuDetailPage() {
+  const [dichVu, setDichVu] = useState<DichVuData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   // Tab hiện tại: Mô tả chi tiết | Bảng giá | Đánh giá
   const [activeTab, setActiveTab] = useState<"desc" | "pricing" | "reviews">("desc");
 
   // Ảnh được chọn hiển thị lớn
-  const images = [
-    "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=1200&q=80",
-    "https://images.unsplash.com/photo-1584820927498-cfe5211fd8bf?auto=format&fit=crop&w=1200&q=80",
-  ];
-  const [selectedImage, setSelectedImage] = useState(images[0]);
+  const [selectedImage, setSelectedImage] = useState<string>("");
 
   // Bảng giá tùy chọn
-  const pricingOptions = [
-    {
-      id: "fixed",
-      title: "Giá cố định",
-      sub: "Dưới 50m²",
-      price: "250.000đ",
-      unit: "/lần",
-      numericPrice: 250000,
-    },
-    {
-      id: "sqm",
-      title: "Giá theo m²",
-      sub: "Từ 50m² trở lên",
-      price: "15.000đ",
-      unit: "/m²",
-      numericPrice: 15000,
-    },
-    {
-      id: "hourly",
-      title: "Giá theo giờ",
-      sub: "Tối thiểu 3 tiếng",
-      price: "120.000đ",
-      unit: "/giờ",
-      numericPrice: 120000,
-    },
-    {
-      id: "monthly",
-      title: "Gói trọn gói",
-      sub: "Tháng (4 lần dọn)",
-      price: "1.500.000đ",
-      unit: "/tháng",
-      numericPrice: 1500000,
-    },
-  ];
-
-  const [selectedPricingType, setSelectedPricingType] = useState(pricingOptions[0].id);
+  const [selectedPricingId, setSelectedPricingId] = useState<string>("");
   const [cleaningDate, setCleaningDate] = useState("");
 
-  const currentOption = pricingOptions.find((p) => p.id === selectedPricingType) || pricingOptions[0];
+  useEffect(() => {
+    async function fetchDichVu() {
+      try {
+        setIsLoading(true);
+        // Gọi API lấy dịch vụ ID 1 từ database
+        const res = await fetch("/api/dich-vu/1");
+        const json = await res.json();
 
-  const serviceChecklist = [
-    "Lau dọn phòng khách: Hút bụi sofa, lau kệ TV, bàn trà, quét màng nhện trần nhà.",
-    "Vệ sinh phòng ngủ: Thay ga trải giường (nếu có yêu cầu), quét bụi gầm giường, lau tủ quần áo.",
-    "Làm sạch nhà bếp: Khử dầu mỡ bếp gas/bếp từ, lau chùi bồn rửa, lau bên ngoài tủ lạnh, lò vi sóng.",
-    "Chà rửa nhà tắm: Tẩy sạch cặn bám gương, kính buồng tắm, khử trùng bồn cầu, chà sàn gạch toilet.",
-    "Hút bụi và lau sàn toàn bộ căn nhà bằng dung dịch hương thơm tự nhiên dễ chịu.",
-  ];
+        if (!res.ok || !json.success) {
+          throw new Error(json.message || "Không thể tải dữ liệu dịch vụ.");
+        }
+
+        const data: DichVuData = json.data;
+        setDichVu(data);
+
+        if (data.images && data.images.length > 0) {
+          setSelectedImage(data.images[0]);
+        }
+
+        if (data.pricingTable && data.pricingTable.length > 0) {
+          setSelectedPricingId(data.pricingTable[0].id);
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Đã xảy ra lỗi";
+        setError(msg);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchDichVu();
+  }, []);
+
+  const currentOption =
+    dichVu?.pricingTable?.find((p) => p.id === selectedPricingId) ||
+    dichVu?.pricingTable?.[0];
+
+  const formatCurrency = (val: number | string) => {
+    const num = Number(val);
+    return isNaN(num) ? "0đ" : new Intl.NumberFormat("vi-VN").format(num) + "đ";
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white text-slate-800">
+        <Loader2 className="w-10 h-10 animate-spin text-blue-600 mb-4" />
+        <p className="text-sm font-medium text-slate-600">Đang tải dữ liệu dịch vụ từ máy chủ...</p>
+      </div>
+    );
+  }
+
+  if (error || !dichVu) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white text-slate-800 p-4">
+        <AlertCircle className="w-12 h-12 text-rose-500 mb-4" />
+        <h2 className="text-xl font-bold text-slate-900 mb-2">Không thể tải thông tin dịch vụ</h2>
+        <p className="text-sm text-slate-500 mb-6">{error || "Dịch vụ không tồn tại trong cơ sở dữ liệu."}</p>
+        <Link
+          href="/"
+          className="px-5 py-2.5 bg-blue-600 text-white font-medium text-sm rounded-xl hover:bg-blue-700 transition"
+        >
+          Quay lại trang chủ
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white text-slate-900 font-sans">
@@ -138,30 +193,30 @@ export default function DichVuDetailPage() {
             Dịch vụ
           </Link>
           <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-          <span className="font-semibold text-blue-600">Vệ sinh nhà ở toàn diện</span>
+          <span className="font-semibold text-blue-600">{dichVu.title}</span>
         </div>
       </div>
 
-      {/* 3. MAIN CONTENT: 2 CỘT (Cột trái: Thông tin dịch vụ & Gallery, Cột phải: Khối đặt & Báo giá) */}
+      {/* 3. MAIN CONTENT: 2 CỘT */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
           {/* CỘT TRÁI (7 CỘT) */}
           <div className="lg:col-span-7 space-y-8">
-            {/* Gallery ảnh */}
+            {/* Gallery ảnh từ Database */}
             <div className="space-y-4">
               <div className="relative w-full h-[320px] sm:h-[420px] rounded-2xl overflow-hidden border border-slate-200/80 shadow-sm">
                 <Image
-                  src={selectedImage}
-                  alt="Vệ sinh nhà ở toàn diện"
+                  src={selectedImage || dichVu.images[0]}
+                  alt={dichVu.title}
                   fill
                   className="object-cover"
                   priority
                 />
               </div>
 
-              {/* Thumbnails */}
+              {/* Thumbnails từ Database */}
               <div className="flex gap-3">
-                {images.map((img, idx) => (
+                {dichVu.images.map((img, idx) => (
                   <button
                     key={idx}
                     type="button"
@@ -178,19 +233,21 @@ export default function DichVuDetailPage() {
               </div>
             </div>
 
-            {/* Thông tin nhà cung cấp & Tiêu đề dịch vụ */}
+            {/* Thông tin nhà cung cấp & Tiêu đề dịch vụ từ Database */}
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-sm font-bold text-slate-800">
-                  Công ty TNHH Vệ sinh Sạch Bóng
+                  {dichVu.shop.name}
                 </span>
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Đã xác minh
-                </span>
+                {dichVu.shop.isVerified && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Đã xác minh
+                  </span>
+                )}
               </div>
 
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mb-3">
-                Dịch vụ vệ sinh nhà ở toàn diện
+                {dichVu.title}
               </h1>
 
               <div className="flex items-center gap-2 text-sm text-slate-600">
@@ -199,12 +256,12 @@ export default function DichVuDetailPage() {
                     <Star key={i} className="w-4 h-4 fill-amber-400 stroke-none" />
                   ))}
                 </div>
-                <span className="font-bold text-slate-900">4.8</span>
-                <span className="text-slate-500">(256 đánh giá)</span>
+                <span className="font-bold text-slate-900">{dichVu.rating}</span>
+                <span className="text-slate-500">({dichVu.totalReviews} đánh giá)</span>
               </div>
             </div>
 
-            {/* Tabs Điều hướng: Mô tả chi tiết | Bảng giá | Đánh giá */}
+            {/* Tabs Điều hướng */}
             <div className="border-b border-slate-200">
               <nav className="flex gap-8 text-sm font-semibold">
                 <button
@@ -238,7 +295,7 @@ export default function DichVuDetailPage() {
                       : "border-transparent text-slate-500 hover:text-slate-800"
                   }`}
                 >
-                  Đánh giá (256)
+                  Đánh giá ({dichVu.totalReviews})
                 </button>
               </nav>
             </div>
@@ -246,26 +303,23 @@ export default function DichVuDetailPage() {
             {/* Nội dung Tab */}
             {activeTab === "desc" && (
               <div className="space-y-6 text-sm text-slate-700 leading-relaxed">
-                <p>
-                  Dịch vụ vệ sinh nhà ở toàn diện của Sạch Bóng cung cấp giải pháp làm sạch sâu mọi
-                  ngóc ngách căn nhà của bạn. Chúng tôi sử dụng các máy móc hiện đại và hóa chất làm
-                  sạch thân thiện với môi trường, không độc hại cho trẻ nhỏ và vật nuôi. Đội ngũ nhân
-                  viên tận tâm, lý lịch rõ ràng đảm bảo sự hài lòng tuyệt đối cho bạn.
-                </p>
+                <p>{dichVu.description}</p>
 
-                <div>
-                  <h3 className="text-base font-bold text-slate-900 mb-3">
-                    Dịch vụ bao gồm những gì?
-                  </h3>
-                  <ul className="space-y-2.5">
-                    {serviceChecklist.map((item, index) => (
-                      <li key={index} className="flex items-start gap-2.5 text-slate-700">
-                        <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                {dichVu.details && dichVu.details.length > 0 && (
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 mb-3">
+                      Dịch vụ bao gồm những gì?
+                    </h3>
+                    <ul className="space-y-2.5">
+                      {dichVu.details.map((item, index) => (
+                        <li key={index} className="flex items-start gap-2.5 text-slate-700">
+                          <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
 
@@ -273,14 +327,14 @@ export default function DichVuDetailPage() {
               <div className="space-y-4">
                 <h3 className="text-base font-bold text-slate-900">Chi tiết các gói bảng giá</h3>
                 <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
-                  {pricingOptions.map((opt) => (
+                  {dichVu.pricingTable?.map((opt) => (
                     <div key={opt.id} className="p-4 flex items-center justify-between bg-white hover:bg-slate-50">
                       <div>
                         <div className="font-bold text-slate-900">{opt.title}</div>
                         <div className="text-xs text-slate-500">{opt.sub}</div>
                       </div>
                       <div className="text-right">
-                        <span className="font-bold text-blue-600 text-base">{opt.price}</span>
+                        <span className="font-bold text-blue-600 text-base">{formatCurrency(opt.price)}</span>
                         <span className="text-xs text-slate-500">{opt.unit}</span>
                       </div>
                     </div>
@@ -292,14 +346,14 @@ export default function DichVuDetailPage() {
             {activeTab === "reviews" && (
               <div className="space-y-4">
                 <div className="flex items-center gap-4 p-5 rounded-2xl bg-slate-50 border border-slate-100">
-                  <div className="text-4xl font-extrabold text-blue-600">4.8</div>
+                  <div className="text-4xl font-extrabold text-blue-600">{dichVu.rating}</div>
                   <div>
                     <div className="flex text-amber-400">
                       {[...Array(5)].map((_, i) => (
                         <Star key={i} className="w-4 h-4 fill-amber-400" />
                       ))}
                     </div>
-                    <div className="text-xs text-slate-500 mt-1">Dựa trên 256 đánh giá đã xác thực</div>
+                    <div className="text-xs text-slate-500 mt-1">Dựa trên {dichVu.totalReviews} đánh giá đã xác thực</div>
                   </div>
                 </div>
 
@@ -323,7 +377,7 @@ export default function DichVuDetailPage() {
             )}
           </div>
 
-          {/* CỘT PHẢI: BẢNG GIÁ & ĐẶT DỊCH VỤ (5 CỘT) */}
+          {/* CỘT PHẢI: BẢNG GIÁ & ĐẶT DỊCH VỤ TỪ DATABASE (5 CỘT) */}
           <div className="lg:col-span-5">
             <div className="sticky top-28 rounded-2xl border-2 border-dashed border-blue-400 p-6 sm:p-7 bg-white shadow-sm space-y-6">
               {/* Giá chỉ từ */}
@@ -331,7 +385,7 @@ export default function DichVuDetailPage() {
                 <span className="text-xs text-slate-500 font-medium">Giá chỉ từ</span>
                 <div className="text-right">
                   <span className="text-2xl sm:text-3xl font-extrabold text-blue-600">
-                    250.000đ
+                    {formatCurrency(dichVu.priceStart)}
                   </span>
                   <span className="text-xs text-slate-500 ml-1">/lần</span>
                 </div>
@@ -343,12 +397,12 @@ export default function DichVuDetailPage() {
                   Bảng giá dịch vụ cụ thể
                 </h4>
                 <div className="space-y-3 text-xs sm:text-sm">
-                  {pricingOptions.map((opt) => (
+                  {dichVu.pricingTable?.map((opt) => (
                     <div
                       key={opt.id}
-                      onClick={() => setSelectedPricingType(opt.id)}
+                      onClick={() => setSelectedPricingId(opt.id)}
                       className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition ${
-                        selectedPricingType === opt.id
+                        selectedPricingId === opt.id
                           ? "bg-blue-50/70 text-blue-700 font-medium"
                           : "hover:bg-slate-50 text-slate-700"
                       }`}
@@ -358,7 +412,7 @@ export default function DichVuDetailPage() {
                         <div className="text-[11px] text-slate-500">{opt.sub}</div>
                       </div>
                       <div className="font-extrabold text-blue-600 text-right">
-                        {opt.price}
+                        {formatCurrency(opt.price)}
                         <span className="text-[11px] font-normal text-slate-500 ml-0.5">
                           {opt.unit}
                         </span>
@@ -376,11 +430,11 @@ export default function DichVuDetailPage() {
                     HÌNH THỨC TÍNH GIÁ
                   </label>
                   <select
-                    value={selectedPricingType}
-                    onChange={(e) => setSelectedPricingType(e.target.value)}
+                    value={selectedPricingId}
+                    onChange={(e) => setSelectedPricingId(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-800 outline-none focus:border-blue-600 cursor-pointer"
                   >
-                    {pricingOptions.map((opt) => (
+                    {dichVu.pricingTable?.map((opt) => (
                       <option key={opt.id} value={opt.id}>
                         {opt.title} ({opt.sub})
                       </option>
@@ -408,7 +462,7 @@ export default function DichVuDetailPage() {
                 <div className="pt-2 flex items-baseline justify-between">
                   <span className="text-sm font-bold text-slate-800">Tổng tạm tính:</span>
                   <span className="text-2xl font-black text-blue-600">
-                    {currentOption.price}
+                    {currentOption ? formatCurrency(currentOption.price) : "0đ"}
                   </span>
                 </div>
 
@@ -421,15 +475,15 @@ export default function DichVuDetailPage() {
                 </button>
               </div>
 
-              {/* Thông tin phụ trợ */}
+              {/* Thông tin phụ trợ từ Database */}
               <div className="pt-4 border-t border-slate-100 space-y-2 text-xs text-slate-500">
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-blue-600 shrink-0" />
-                  <span>Thời gian thực hiện: 2-4 giờ</span>
+                  <span>Thời gian thực hiện: {dichVu.duration}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-blue-600 shrink-0" />
-                  <span>Khu vực phục vụ: Quận 1, 2, 3, 7, Thủ Đức</span>
+                  <span>Khu vực phục vụ: {dichVu.serviceArea}</span>
                 </div>
               </div>
             </div>
