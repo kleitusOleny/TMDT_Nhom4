@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/src/lib/prisma";
 import bcrypt from "bcryptjs";
 
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     );
 
     // Lưu cookie phiên đăng nhập
-    response.cookies.set("cleanmate_session", user.id, {
+    response.cookies.set("cleanmate_session", String(user.id), {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       maxAge: rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24, // 30 ngày nếu tick ghi nhớ, mặc định 1 ngày
