@@ -17,7 +17,11 @@ export const metadata: Metadata = {
   description: "Đặt dịch vụ dọn dẹp vệ sinh nhà ở, văn phòng, công nghiệp uy tín, nhanh chóng và an toàn.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html
       lang="en"
