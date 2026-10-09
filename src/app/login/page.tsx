@@ -16,6 +16,7 @@ import {
   AlertCircle,
   Loader2,
 } from "lucide-react";
+import { signIn } from "next-auth/react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -225,9 +226,7 @@ export default function LoginPage() {
           {/* Google Login Button */}
           <button
             type="button"
-            onClick={() => {
-              router.push("/api/auth/google");
-            }}
+            onClick={() => signIn("google", { callbackUrl: "/" })}
             className="w-full py-3.5 px-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium text-sm rounded-xl transition flex items-center justify-center gap-3 shadow-sm cursor-pointer"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
