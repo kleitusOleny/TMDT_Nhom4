@@ -48,18 +48,31 @@ export default function InteractiveDonutChart({
   const circumference = 2 * Math.PI * radius;
 
   // Tính lũy kế góc bắt đầu cho từng lát cắt
-  let cumulativePercent = 0;
-  const slices = data.map((item, index) => {
-    const strokeDasharray = `${(item.percentage / 100) * circumference} ${circumference}`;
-    const strokeDashoffset = -((cumulativePercent / 100) * circumference);
-    cumulativePercent += item.percentage;
-    return {
-      ...item,
-      strokeDasharray,
-      strokeDashoffset,
-      index,
-    };
-  });
+  const { slices } = data.reduce(
+    (result, item, index) => {
+      const strokeDasharray = `${(item.percentage / 100) * circumference} ${circumference}`;
+      const strokeDashoffset = -((result.cumulativePercent / 100) * circumference);
+
+      return {
+        cumulativePercent: result.cumulativePercent + item.percentage,
+        slices: [
+          ...result.slices,
+          {
+            ...item,
+            strokeDasharray,
+            strokeDashoffset,
+            index,
+          },
+        ],
+      };
+    },
+    {
+      cumulativePercent: 0,
+      slices: [] as Array<
+        DonutItem & { strokeDasharray: string; strokeDashoffset: number; index: number }
+      >,
+    }
+  );
 
   const activeItem = activeIndex !== null ? data[activeIndex] : null;
 

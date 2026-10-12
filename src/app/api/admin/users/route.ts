@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { initialUsers, UserRecord } from "@/src/lib/admin-data";
 
 // Bộ nhớ in-memory giả lập cho phiên làm việc
-let usersStore: UserRecord[] = [...initialUsers];
+const usersStore: UserRecord[] = [...initialUsers];
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);

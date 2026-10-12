@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { initialServices, ServiceRecord } from "@/src/lib/admin-data";
 
-let servicesStore: ServiceRecord[] = [...initialServices];
+const servicesStore: ServiceRecord[] = [...initialServices];
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);

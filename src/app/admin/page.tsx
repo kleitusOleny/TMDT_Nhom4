@@ -163,13 +163,21 @@ export default function AdminDashboardPage() {
   };
 
   useEffect(() => {
-    fetchAnalytics();
+    const timeoutId = window.setTimeout(() => {
+      fetchAnalytics();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [viewMode, selectedSellerId, fromDate, toDate]);
 
   useEffect(() => {
-    if (activeTab === "users") fetchUsers();
-    if (activeTab === "services") fetchServices();
-    if (activeTab === "bookings") fetchBookings();
+    const timeoutId = window.setTimeout(() => {
+      if (activeTab === "users") fetchUsers();
+      if (activeTab === "services") fetchServices();
+      if (activeTab === "bookings") fetchBookings();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [
     activeTab,
     viewMode,
