@@ -66,9 +66,13 @@ export default function LoginPage() {
 
       setSuccessMessage(data?.message || "Đăng nhập thành công! Đang chuyển hướng...");
 
-      // Chuyển hướng về trang chủ
+      // Chuyển hướng: Nếu là Admin thì vào /admin, người dùng thường về trang chủ /
       setTimeout(() => {
-        router.push("/");
+        if (data?.user?.role === "ADMIN") {
+          router.push("/admin");
+        } else {
+          router.push("/");
+        }
         router.refresh();
       }, 1000);
     } catch (err: unknown) {
@@ -250,8 +254,28 @@ export default function LoginPage() {
             Đăng nhập bằng Google
           </button>
 
+          {/* Hộp gợi ý tài khoản Admin */}
+          <div className="mt-6 p-3.5 rounded-xl bg-amber-50/80 border border-amber-200/80 text-xs flex items-center justify-between">
+            <div>
+              <span className="font-bold text-amber-900">👑 Tài khoản Admin:</span>
+              <div className="text-amber-800 text-[11px] mt-0.5">
+                SĐT: <span className="font-mono font-semibold">0123456789</span> • Mật khẩu: <span className="font-mono font-semibold">admin123</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setIdentifier("0123456789");
+                setPassword("admin123");
+              }}
+              className="px-2.5 py-1.5 rounded-lg bg-amber-200 hover:bg-amber-300 text-amber-900 font-bold text-xs transition cursor-pointer shadow-xs shrink-0"
+            >
+              Điền nhanh
+            </button>
+          </div>
+
           {/* Chưa có tài khoản */}
-          <div className="text-center mt-8">
+          <div className="text-center mt-6">
             <p className="text-sm text-slate-500">
               Chưa có tài khoản CleanMate?{" "}
               <Link
