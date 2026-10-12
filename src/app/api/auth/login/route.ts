@@ -26,14 +26,15 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    if (!user) {
+    // Nếu không tìm thấy người dùng hoặc tài khoản này tạo bằng Google
+    if (!user || !user.password) {
       return NextResponse.json(
         { message: "Tài khoản hoặc mật khẩu không chính xác" },
         { status: 401 }
       );
     }
 
-    // Kiểm tra mật khẩu (hỗ trợ hash bcrypt và fallback test text thông thường nếu vừa test dữ liệu tay)
+    // Kiểm tra mật khẩu (hỗ trợ hash bcrypt và fallback plain text)
     let isPasswordValid = false;
     if (user.password.startsWith("$2a$") || user.password.startsWith("$2b$")) {
       isPasswordValid = await bcrypt.compare(password, user.password);
