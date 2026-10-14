@@ -53,7 +53,7 @@ export default function Header({ currentPath = "/", showSearchOrBooking = true }
           fullName: sessionData.user.name || "Khách hàng",
           email: sessionData.user.email || null,
           phone: null,
-          role: "CUSTOMER",
+          role: sessionData.user.role || "CUSTOMER",
           image: sessionData.user.image,
         });
       }
