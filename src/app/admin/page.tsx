@@ -30,6 +30,8 @@ import {
   Home,
   Store,
   ChevronDown,
+  Menu,
+  X,
 } from "lucide-react";
 import InteractiveColumnChart, {
   ColumnDataPoint,
@@ -55,6 +57,7 @@ export default function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState<
     "analytics" | "users" | "services" | "bookings" | "finance"
   >("analytics");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Bộ lọc ngày (Mặc định 7 ngày gần nhất)
   const todayStr = "2026-10-12";
@@ -409,7 +412,7 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col">
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex">
       {/* TOAST THÔNG BÁO */}
       {toastMessage && (
         <div className="fixed top-5 right-5 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 text-sm animate-bounce border border-slate-700">
@@ -418,12 +421,26 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* 1. HEADER CHÍNH */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
-          {/* Logo & Tiêu đề quản trị */}
-          <div className="flex items-center gap-4">
-            <Link href="/" className="flex items-center gap-2 group">
+      {/* BACKDROP FOR MOBILE SIDEBAR */}
+      {isSidebarOpen && (
+        <div
+          onClick={() => setIsSidebarOpen(false)}
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-40 md:hidden"
+        />
+      )}
+
+      {/* ========================================================
+          SIDEBAR NAVIGATION (CỘT ĐIỀU HƯỚNG TRÁI)
+      ======================================================== */}
+      <aside
+        className={`fixed md:sticky top-0 left-0 h-screen w-64 bg-white border-r border-slate-200 z-50 flex flex-col justify-between transition-transform duration-200 ease-in-out ${
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        }`}
+      >
+        <div className="flex flex-col h-full">
+          {/* Logo Brand CleanMate */}
+          <div className="h-18 px-6 border-b border-slate-100 flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-2.5 group">
               <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/30">
                 <Sparkles className="w-5 h-5" />
               </div>
@@ -431,53 +448,59 @@ export default function AdminDashboardPage() {
                 Clean<span className="text-blue-600">Mate</span>
               </span>
             </Link>
-            <div className="h-5 w-px bg-slate-200 hidden sm:block" />
-            <div className="hidden sm:flex items-center gap-2">
-              <span className="text-xs uppercase font-extrabold px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 tracking-wider">
-                {viewMode === "ADMIN" ? "Quản Trị Sàn" : "Kênh Người Bán"}
-              </span>
-              <span className="text-xs text-slate-400 font-medium">v1.2.0</span>
-            </div>
+
+            <button
+              onClick={() => setIsSidebarOpen(false)}
+              className="p-1.5 text-slate-400 hover:text-slate-600 md:hidden rounded-lg hover:bg-slate-100"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
-          {/* Công tắc chuyển đổi Chế độ Quản trị Sàn (Admin) <-> Kênh Người Bán (Seller) */}
-          <div className="flex items-center gap-3">
+          {/* Mode Switcher: Toàn sàn (Admin) vs Kênh Người Bán (Seller) */}
+          <div className="p-4 border-b border-slate-100 space-y-3">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1">
+              Không gian quản lý
+            </div>
             <div className="bg-slate-100 p-1 rounded-xl flex items-center text-xs font-semibold">
               <button
                 onClick={() => {
                   startTransition(() => setViewMode("ADMIN"));
                 }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition cursor-pointer ${
+                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg transition cursor-pointer ${
                   viewMode === "ADMIN"
                     ? "bg-white text-blue-600 shadow-xs font-bold"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
                 <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Toàn sàn (Admin)</span>
+                <span>Admin</span>
               </button>
               <button
                 onClick={() => {
                   startTransition(() => setViewMode("SELLER"));
                 }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition cursor-pointer ${
+                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg transition cursor-pointer ${
                   viewMode === "SELLER"
                     ? "bg-white text-blue-600 shadow-xs font-bold"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
                 <Store className="w-3.5 h-3.5" />
-                <span>Kênh Người Bán</span>
+                <span>Người Bán</span>
               </button>
             </div>
 
-            {/* Nếu đang ở Kênh Người Bán: Dropdown chọn doanh nghiệp đối tác */}
+            {/* Dropdown chọn Shop đối tác nếu đang ở Kênh Người Bán */}
             {viewMode === "SELLER" && (
-              <div className="relative">
+              <div className="pt-1">
+                <label className="block text-[11px] font-medium text-slate-500 mb-1 px-1">
+                  Chọn gian hàng:
+                </label>
                 <select
                   value={selectedSellerId}
                   onChange={(e) => setSelectedSellerId(Number(e.target.value))}
-                  className="bg-white border border-slate-200 text-xs font-semibold py-1.5 px-2.5 rounded-xl shadow-xs text-slate-800 outline-none cursor-pointer focus:border-blue-500"
+                  className="w-full bg-slate-50 border border-slate-200 text-xs font-semibold py-2 px-2.5 rounded-xl shadow-2xs text-slate-800 outline-none cursor-pointer focus:border-blue-500 truncate"
                 >
                   {shopsList.length > 0 ? (
                     shopsList.map((s) => (
@@ -495,85 +518,142 @@ export default function AdminDashboardPage() {
                 </select>
               </div>
             )}
-
-            <Link
-              href="/"
-              className="text-xs text-slate-500 hover:text-blue-600 flex items-center gap-1 font-medium transition"
-            >
-              <Home className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">Về trang chủ</span>
-            </Link>
           </div>
-        </div>
 
-        {/* 2. SUB-NAVIGATION TABS */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-6 overflow-x-auto text-sm font-medium border-t border-slate-100">
-          <button
-            onClick={() => setActiveTab("analytics")}
-            className={`flex items-center gap-2 py-3 border-b-2 transition cursor-pointer ${
-              activeTab === "analytics"
-                ? "border-blue-600 text-blue-600 font-semibold"
-                : "border-transparent text-slate-500 hover:text-slate-900"
-            }`}
-          >
-            <BarChart3 className="w-4 h-4" />
-            <span>Thống kê & Biểu đồ</span>
-          </button>
+          {/* SIDEBAR NAVIGATION ITEMS */}
+          <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-3 py-2">
+              Chức năng chính
+            </div>
 
-          {viewMode === "ADMIN" && (
             <button
-              onClick={() => setActiveTab("users")}
-              className={`flex items-center gap-2 py-3 border-b-2 transition cursor-pointer ${
-                activeTab === "users"
-                  ? "border-blue-600 text-blue-600 font-semibold"
-                  : "border-transparent text-slate-500 hover:text-slate-900"
+              onClick={() => {
+                setActiveTab("analytics");
+                setIsSidebarOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${
+                activeTab === "analytics"
+                  ? "bg-blue-50 text-blue-600 font-semibold shadow-2xs"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
               }`}
             >
-              <Users className="w-4 h-4" />
-              <span>Quản lý Người dùng</span>
+              <BarChart3 className={`w-4.5 h-4.5 ${activeTab === "analytics" ? "text-blue-600" : "text-slate-400"}`} />
+              <span>Thống kê & Biểu đồ</span>
             </button>
-          )}
 
-          <button
-            onClick={() => setActiveTab("services")}
-            className={`flex items-center gap-2 py-3 border-b-2 transition cursor-pointer ${
-              activeTab === "services"
-                ? "border-blue-600 text-blue-600 font-semibold"
-                : "border-transparent text-slate-500 hover:text-slate-900"
-            }`}
-          >
-            <Layers className="w-4 h-4" />
-            <span>{viewMode === "ADMIN" ? "Quản lý Dịch vụ" : "Dịch vụ của tôi"}</span>
-          </button>
+            {viewMode === "ADMIN" && (
+              <button
+                onClick={() => {
+                  setActiveTab("users");
+                  setIsSidebarOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${
+                  activeTab === "users"
+                    ? "bg-blue-50 text-blue-600 font-semibold shadow-2xs"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                }`}
+              >
+                <Users className={`w-4.5 h-4.5 ${activeTab === "users" ? "text-blue-600" : "text-slate-400"}`} />
+                <span>Quản lý Người dùng</span>
+              </button>
+            )}
 
-          <button
-            onClick={() => setActiveTab("bookings")}
-            className={`flex items-center gap-2 py-3 border-b-2 transition cursor-pointer ${
-              activeTab === "bookings"
-                ? "border-blue-600 text-blue-600 font-semibold"
-                : "border-transparent text-slate-500 hover:text-slate-900"
-            }`}
-          >
-            <CalendarCheck className="w-4 h-4" />
-            <span>{viewMode === "ADMIN" ? "Quản lý Đơn hàng" : "Đơn hàng nhận việc"}</span>
-          </button>
+            <button
+              onClick={() => {
+                setActiveTab("services");
+                setIsSidebarOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${
+                activeTab === "services"
+                  ? "bg-blue-50 text-blue-600 font-semibold shadow-2xs"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              }`}
+            >
+              <Layers className={`w-4.5 h-4.5 ${activeTab === "services" ? "text-blue-600" : "text-slate-400"}`} />
+              <span>{viewMode === "ADMIN" ? "Quản lý Dịch vụ" : "Dịch vụ của tôi"}</span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab("finance")}
-            className={`flex items-center gap-2 py-3 border-b-2 transition cursor-pointer ${
-              activeTab === "finance"
-                ? "border-blue-600 text-blue-600 font-semibold"
-                : "border-transparent text-slate-500 hover:text-slate-900"
-            }`}
-          >
-            <DollarSign className="w-4 h-4" />
-            <span>{viewMode === "ADMIN" ? "Tài chính & Hoa hồng" : "Ví & Rút tiền"}</span>
-          </button>
+            <button
+              onClick={() => {
+                setActiveTab("bookings");
+                setIsSidebarOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${
+                activeTab === "bookings"
+                  ? "bg-blue-50 text-blue-600 font-semibold shadow-2xs"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              }`}
+            >
+              <CalendarCheck className={`w-4.5 h-4.5 ${activeTab === "bookings" ? "text-blue-600" : "text-slate-400"}`} />
+              <span>{viewMode === "ADMIN" ? "Quản lý Đơn hàng" : "Đơn hàng nhận việc"}</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setActiveTab("finance");
+                setIsSidebarOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${
+                activeTab === "finance"
+                  ? "bg-blue-50 text-blue-600 font-semibold shadow-2xs"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              }`}
+            >
+              <DollarSign className={`w-4.5 h-4.5 ${activeTab === "finance" ? "text-blue-600" : "text-slate-400"}`} />
+              <span>{viewMode === "ADMIN" ? "Tài chính & Hoa hồng" : "Ví & Rút tiền"}</span>
+            </button>
+          </nav>
+
+          {/* Footer Sidebar: Về trang chủ & thông tin phiên bản */}
+          <div className="p-4 border-t border-slate-100 flex flex-col gap-2">
+            <Link
+              href="/"
+              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-blue-600 transition"
+            >
+              <Home className="w-4 h-4 text-slate-400" />
+              <span>Quay về trang chủ</span>
+            </Link>
+            <div className="flex items-center justify-between px-3 text-[11px] text-slate-400">
+              <span>Hệ thống CleanMate</span>
+              <span className="font-semibold">v1.2.0</span>
+            </div>
+          </div>
         </div>
-      </header>
+      </aside>
 
-      {/* 3. NỘI DUNG CHÍNH (MAIN BODY) */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      {/* ========================================================
+          VÙNG NỘI DUNG CHÍNH (RIGHT CONTENT AREA)
+      ======================================================== */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top Navbar cho Mobile & hiển thị Breadcrumb */}
+        <header className="bg-white border-b border-slate-200 h-16 px-4 sm:px-6 lg:px-8 flex items-center justify-between sticky top-0 z-30">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl md:hidden"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+                {activeTab === "analytics" && "Báo cáo Thống kê & Doanh thu"}
+                {activeTab === "users" && "Quản lý Người dùng & Tài khoản"}
+                {activeTab === "services" && (viewMode === "ADMIN" ? "Quản trị Danh mục Dịch vụ" : "Dịch vụ của Shop")}
+                {activeTab === "bookings" && (viewMode === "ADMIN" ? "Quản lý Lịch hẹn & Đơn hàng" : "Đơn hàng nhận việc")}
+                {activeTab === "finance" && (viewMode === "ADMIN" ? "Báo cáo Tài chính & Hoa hồng 15%" : "Ví doanh thu & Rút tiền")}
+              </h1>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="text-xs uppercase font-extrabold px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 tracking-wider hidden sm:inline-block">
+              {viewMode === "ADMIN" ? "Toàn sàn CleanMate" : "Kênh Người Bán"}
+            </span>
+          </div>
+        </header>
+
+        {/* 3. NỘI DUNG CHÍNH (MAIN BODY) */}
+        <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* ========================================================
             TAB 1: THỐNG KÊ BIỂU ĐỒ (ANALYTICS & CHARTS)
         ======================================================== */}
@@ -1367,6 +1447,7 @@ export default function AdminDashboardPage() {
           </div>
         )}
       </main>
+    </div>
 
       {/* MODAL: THÊM DỊCH VỤ MỚI */}
       {showAddServiceModal && (
