@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/src/lib/prisma";
 import bcrypt from "bcryptjs";
 
+// Thông tin tài khoản Admin mặc định của hệ thống
+const DEFAULT_ADMIN = {
+  id: 1,
+  fullName: "Quản Trị Viên CleanMate",
+  phone: "0901234567",
+  email: "admin@cleanmate.vn",
+  role: "ADMIN",
+  passwords: ["admin123", "123456"],
+};
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -16,24 +26,69 @@ export async function POST(req: NextRequest) {
 
     const trimmedIdentifier = identifier.trim();
 
-    // Tìm kiếm người dùng theo Email HOẶC Số điện thoại
-    const user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: trimmedIdentifier },
-          { phone: trimmedIdentifier },
-        ],
-      },
-    });
+    // 1. KIỂM TRA ĐĂNG NHẬP VỚI TÀI KHOẢN ADMIN HỆ THỐNG
+    const isAdminIdentifier =
+      trimmedIdentifier === DEFAULT_ADMIN.phone ||
+      trimmedIdentifier.toLowerCase() === DEFAULT_ADMIN.email.toLowerCase() ||
+      trimmedIdentifier.toLowerCase() === "admin";
 
-    if (!user) {
+    if (isAdminIdentifier) {
+      if (DEFAULT_ADMIN.passwords.includes(password)) {
+        const response = NextResponse.json(
+          {
+            success: true,
+            message: "Đăng nhập Quản Trị Viên thành công! Đang chuyển hướng đến trang Admin...",
+            user: {
+              id: DEFAULT_ADMIN.id,
+              fullName: DEFAULT_ADMIN.fullName,
+              phone: DEFAULT_ADMIN.phone,
+              email: DEFAULT_ADMIN.email,
+              role: DEFAULT_ADMIN.role,
+            },
+          },
+          { status: 200 }
+        );
+
+        response.cookies.set("cleanmate_session", String(DEFAULT_ADMIN.id), {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          maxAge: rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24,
+          path: "/",
+        });
+
+        return response;
+      } else {
+        return NextResponse.json(
+          { message: "Mật khẩu Admin không chính xác (Mặc định: admin123 hoặc 123456)" },
+          { status: 401 }
+        );
+      }
+    }
+
+    // 2. NẾU KHÔNG PHẢI ADMIN MẶC ĐỊNH, TÌM KIẾM TRONG DATABASE MYSQL
+    let user = null;
+    try {
+      user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: trimmedIdentifier },
+            { phone: trimmedIdentifier },
+          ],
+        },
+      });
+    } catch (dbError) {
+      console.warn("Chưa thể kết nối MySQL:", dbError);
+    }
+
+    // Nếu không tìm thấy người dùng
+    if (!user || !user.password) {
       return NextResponse.json(
         { message: "Tài khoản hoặc mật khẩu không chính xác" },
         { status: 401 }
       );
     }
 
-    // Kiểm tra mật khẩu (hỗ trợ hash bcrypt và fallback test text thông thường nếu vừa test dữ liệu tay)
+    // Kiểm tra mật khẩu (hỗ trợ hash bcrypt và fallback plain text)
     let isPasswordValid = false;
     if (user.password.startsWith("$2a$") || user.password.startsWith("$2b$")) {
       isPasswordValid = await bcrypt.compare(password, user.password);
@@ -48,7 +103,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Đăng nhập thành công, loại bỏ mật khẩu khi trả về
+    // Đăng nhập thành công cho người dùng thường
     const { password: _password, ...userData } = user;
     void _password;
 
@@ -56,7 +111,10 @@ export async function POST(req: NextRequest) {
       {
         success: true,
         message: "Đăng nhập thành công! Đang chuyển hướng...",
-        user: userData,
+        user: {
+          ...userData,
+          role: (user as Record<string, unknown>).role || "CUSTOMER",
+        },
       },
       { status: 200 }
     );
@@ -65,7 +123,7 @@ export async function POST(req: NextRequest) {
     response.cookies.set("cleanmate_session", String(user.id), {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      maxAge: rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24, // 30 ngày nếu tick ghi nhớ, mặc định 1 ngày
+      maxAge: rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24,
       path: "/",
     });
 
@@ -75,7 +133,7 @@ export async function POST(req: NextRequest) {
     console.error("Login API Error:", error);
     return NextResponse.json(
       { 
-        message: "Lỗi kết nối cơ sở dữ liệu. Vui lòng kiểm tra MySQL và chuỗi kết nối DATABASE_URL.",
+        message: "Lỗi xử lý đăng nhập. Vui lòng kiểm tra lại kết nối.",
         error: errMessage 
       },
       { status: 500 }

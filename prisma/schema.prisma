@@ -13,48 +13,85 @@ datasource db {
 }
 
 model User {
-  id          Int       @id @default(autoincrement())
-  phone       String    @unique
-  email       String?   @unique
-  password    String
-  fullName    String?
-  dateOfBirth DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  shops       Shop[]
+  id            Int       @id @default(autoincrement())
+  phone         String?   @unique // nullable cho Google user
+  email         String?   @unique
+  password      String?           // nullable cho Google user
+  fullName      String?
+  dateOfBirth   DateTime?
+  emailVerified DateTime?
+  image         String?           // Google avatar
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  shops         Shop[]
+  accounts      Account[]
+  sessions      Session[]
 }
 
 model Shop {
-  id          Int       @id @default(autoincrement())
-  name        String
-  slug        String    @unique
-  isVerified  Boolean   @default(true)
-  rating      Float     @default(5.0)
-  totalReviews Int      @default(0)
-  area        String?
-  ownerId     Int
-  owner       User      @relation(fields: [ownerId], references: [id])
-  dichVuList  DichVu[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id           Int       @id @default(autoincrement())
+  name         String
+  slug         String    @unique
+  isVerified   Boolean   @default(true)
+  rating       Float     @default(5.0)
+  totalReviews Int       @default(0)
+  area         String?
+  ownerId      Int
+  owner        User      @relation(fields: [ownerId], references: [id])
+  dichVuList   DichVu[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }
 
 model DichVu {
-  id             Int       @id @default(autoincrement())
-  title          String
-  slug           String    @unique
-  description    String    @db.Text
-  details        Json?     // Danh sách các mục công việc chi tiết
-  priceStart     Decimal   // Giá khởi điểm hiển thị
-  pricingTable   Json?     // Bảng giá cụ thể (giá cố định, theo m2, theo giờ, trọn gói)
-  images         Json      // Mảng đường dẫn ảnh
-  rating         Float     @default(5.0)
-  totalReviews   Int       @default(0)
-  duration       String?   // Thời gian thực hiện (vd: 2-4 giờ)
-  serviceArea    String?   // Khu vực phục vụ (vd: Quận 1, 2, 3, 7, Thủ Đức)
-  shopId         Int
-  shop           Shop      @relation(fields: [shopId], references: [id])
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id           Int       @id @default(autoincrement())
+  title        String
+  slug         String    @unique
+  description  String    @db.Text
+  details      Json?     // Danh sách các mục công việc chi tiết
+  priceStart   Decimal   // Giá khởi điểm hiển thị
+  pricingTable Json?     // Bảng giá cụ thể (giá cố định, theo m2, theo giờ, trọn gói)
+  images       Json      // Mảng đường dẫn ảnh
+  rating       Float     @default(5.0)
+  totalReviews Int       @default(0)
+  duration     String?   // Thời gian thực hiện (vd: 2-4 giờ)
+  serviceArea  String?   // Khu vực phục vụ (vd: Quận 1, 2, 3, 7, Thủ Đức)
+  shopId       Int
+  shop         Shop      @relation(fields: [shopId], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }
 
+model Account {
+  id                Int     @id @default(autoincrement())
+  userId            Int
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           Int      @id @default(autoincrement())
+  sessionToken String   @unique
+  userId       Int
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}

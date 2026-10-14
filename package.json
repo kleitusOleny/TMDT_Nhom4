@@ -16,18 +16,21 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@auth/prisma-adapter": "^2.11.3",
     "@prisma/adapter-mariadb": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "@types/bcryptjs": "^2.4.6",
     "bcryptjs": "^3.0.3",
     "lucide-react": "^1.52.0",
     "next": "16.4.0",
+    "next-auth": "^4.24.15",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
-    "@types/node": "^20",
+    "@types/geojson": "^7946.0.16",
+    "@types/node": "^20.19.43",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
