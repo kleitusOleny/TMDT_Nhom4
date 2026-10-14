@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -12,56 +7,383 @@ datasource db {
   provider = "mysql"
 }
 
+// ================= ENUMS =================
+
+enum Role {
+  CUSTOMER
+  PROVIDER
+  STAFF
+  ADMIN
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  VNPAY
+  MOMO
+  BANK_TRANSFER
+  CASH
+}
+
+enum RefundStatus {
+  NONE
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum ReportType {
+  SHOP
+  CUSTOMER
+  SERVICE
+  REVIEW
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWING
+  RESOLVED
+  REJECTED
+}
+
+// ================= MODELS =================
+
 model User {
   id            Int       @id @default(autoincrement())
-  phone         String?   @unique // nullable cho Google user
+  role          Role      @default(CUSTOMER)
+  phone         String?   @unique
   email         String?   @unique
-  password      String?           // nullable cho Google user
+  password      String?
   fullName      String?
   dateOfBirth   DateTime?
   emailVerified DateTime?
-  image         String?           // Google avatar
+  image         String?
+  isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  shops         Shop[]
+
+  // Auth
   accounts      Account[]
   sessions      Session[]
+
+  // Core features
+  shops            Shop[]         @relation("ShopOwner")
+  bookings         Booking[]      @relation("CustomerBookings")
+  cancelledBooking Booking[]      @relation("CancelledBy")
+  reviews          Review[]
+  cart             Cart?
+
+  // Q&A / Social
+  comments         Comment[]
+  notifications    Notification[]
+
+  // System / Staff / Reporting
+  approvedShops    Shop[]         @relation("ShopApprover")
+  handledTickets   Ticket[]       @relation("StaffTickets")
+  tickets          Ticket[]       @relation("UserTickets")
+  reportsMade      Report[]       @relation("Reporter")
+  reportsReceived  Report[]       @relation("ReportedUser")
+
+  // Chat
+  conversations    Conversation[] @relation("UserConversations")
+  messages         Message[]
+}
+
+model Category {
+  id          Int      @id @default(autoincrement())
+  name        String
+  slug        String   @unique
+  description String?  @db.Text
+  services    DichVu[] // Many-to-many relationship
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Shop {
-  id           Int       @id @default(autoincrement())
-  name         String
-  slug         String    @unique
-  isVerified   Boolean   @default(true)
-  rating       Float     @default(5.0)
-  totalReviews Int       @default(0)
-  area         String?
-  ownerId      Int
-  owner        User      @relation(fields: [ownerId], references: [id])
-  dichVuList   DichVu[]
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id             Int            @id @default(autoincrement())
+  name           String
+  slug           String         @unique
+  description    String?        @db.Text
+  address        String?
+  area           String?
+  rating         Float          @default(5.0)
+  totalReviews   Int            @default(0)
+  
+  approvalStatus ApprovalStatus @default(PENDING)
+  rejectionReason String?       @db.Text
+  
+  ownerId        Int
+  owner          User           @relation("ShopOwner", fields: [ownerId], references: [id])
+  
+  approvedById   Int?
+  approvedBy     User?          @relation("ShopApprover", fields: [approvedById], references: [id])
+  
+  services       DichVu[]
+  reports        Report[]
+  
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 }
 
 model DichVu {
-  id           Int       @id @default(autoincrement())
+  id           Int        @id @default(autoincrement())
   title        String
-  slug         String    @unique
-  description  String    @db.Text
-  details      Json?     // Danh sách các mục công việc chi tiết
-  priceStart   Decimal   // Giá khởi điểm hiển thị
-  pricingTable Json?     // Bảng giá cụ thể (giá cố định, theo m2, theo giờ, trọn gói)
-  images       Json      // Mảng đường dẫn ảnh
-  rating       Float     @default(5.0)
-  totalReviews Int       @default(0)
-  duration     String?   // Thời gian thực hiện (vd: 2-4 giờ)
-  serviceArea  String?   // Khu vực phục vụ (vd: Quận 1, 2, 3, 7, Thủ Đức)
+  slug         String     @unique
+  description  String     @db.Text
+  details      Json?
+  priceStart   Decimal    @db.Decimal(10, 2)
+  pricingTable Json?
+  images       Json
+  rating       Float      @default(5.0)
+  totalReviews Int        @default(0)
+  duration     String?
+  serviceArea  String?
+  isActive     Boolean    @default(true)
+  
   shopId       Int
-  shop         Shop      @relation(fields: [shopId], references: [id])
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  shop         Shop       @relation(fields: [shopId], references: [id])
+  
+  categories   Category[] // Phân loại dịch vụ (Lọc sản phẩm)
+  bookings     Booking[]
+  reviews      Review[]
+  comments     Comment[]
+  cartItems    CartItem[]
+  
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 }
 
+// ----------------- GIỎ HÀNG (CART) -----------------
+model Cart {
+  id        Int        @id @default(autoincrement())
+  userId    Int        @unique
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id            Int       @id @default(autoincrement())
+  cartId        Int
+  cart          Cart      @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  serviceId     Int
+  service       DichVu    @relation(fields: [serviceId], references: [id])
+  quantity      Int       @default(1)
+  scheduledDate DateTime?
+  note          String?   @db.Text
+  createdAt     DateTime  @default(now())
+}
+
+// ----------------- ĐẶT HÀNG & NGHIỆM THU -----------------
+model Booking {
+  id                   Int           @id @default(autoincrement())
+  bookingCode          String        @unique @db.VarChar(50)
+  scheduledDate        DateTime
+  address              String        @db.Text
+  note                 String?       @db.Text
+  totalPrice           Decimal       @db.Decimal(10, 2)
+  status               BookingStatus @default(PENDING)
+  
+  // Hủy đơn hàng
+  cancellationReason   String?       @db.Text
+  cancelledById        Int?
+  cancelledBy          User?         @relation("CancelledBy", fields: [cancelledById], references: [id])
+  
+  // Nghiệm thu bằng hình ảnh
+  beforeImages         Json?         // Mảng link ảnh trước khi làm
+  afterImages          Json?         // Mảng link ảnh sau khi làm
+  isAcceptedByCustomer Boolean       @default(false)
+  
+  customerId           Int
+  customer             User          @relation("CustomerBookings", fields: [customerId], references: [id])
+  
+  serviceId            Int
+  service              DichVu        @relation(fields: [serviceId], references: [id])
+  
+  payment              Payment?
+  ticket               Ticket?
+  review               Review?
+  conversation         Conversation?
+  
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+}
+
+// ----------------- THANH TOÁN, HOÀN TIỀN & TIP -----------------
+model Payment {
+  id            Int           @id @default(autoincrement())
+  amount        Decimal       @db.Decimal(10, 2)
+  tipAmount     Decimal       @default(0) @db.Decimal(10, 2) // Tiền boa trực tiếp
+  
+  method        PaymentMethod
+  status        PaymentStatus @default(PENDING)
+  transactionId String?       @unique @db.VarChar(100)
+  providerData  Json?
+  
+  // Xử lý hoàn tiền
+  refundAmount  Decimal       @default(0) @db.Decimal(10, 2)
+  refundStatus  RefundStatus  @default(NONE)
+  
+  bookingId     Int           @unique
+  booking       Booking       @relation(fields: [bookingId], references: [id])
+  
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+// ----------------- TƯƠNG TÁC (ĐÁNH GIÁ & BÌNH LUẬN) -----------------
+model Review {
+  id         Int      @id @default(autoincrement())
+  rating     Int      @db.TinyInt
+  comment    String?  @db.Text
+  images     Json?
+  
+  customerId Int
+  customer   User     @relation(fields: [customerId], references: [id])
+  
+  serviceId  Int
+  service    DichVu   @relation(fields: [serviceId], references: [id])
+  
+  bookingId  Int      @unique
+  booking    Booking  @relation(fields: [bookingId], references: [id])
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Comment {
+  id        Int       @id @default(autoincrement())
+  content   String    @db.Text
+  
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id])
+  
+  serviceId Int
+  service   DichVu    @relation(fields: [serviceId], references: [id])
+  
+  // Self-relation để làm tính năng trả lời bình luận
+  parentId  Int?
+  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   Comment[] @relation("CommentReplies")
+  
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+// ----------------- HỆ THỐNG BÁO CÁO & THÔNG BÁO -----------------
+model Report {
+  id             Int          @id @default(autoincrement())
+  type           ReportType
+  reason         String       @db.Text
+  status         ReportStatus @default(PENDING)
+  adminNote      String?      @db.Text
+  
+  reporterId     Int
+  reporter       User         @relation("Reporter", fields: [reporterId], references: [id])
+  
+  reportedUserId Int?
+  reportedUser   User?        @relation("ReportedUser", fields: [reportedUserId], references: [id])
+  
+  reportedShopId Int?
+  reportedShop   Shop?        @relation(fields: [reportedShopId], references: [id])
+  
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  title     String
+  message   String   @db.Text
+  isRead    Boolean  @default(false)
+  type      String   // BOOKING_UPDATE, PROMOTION, SYSTEM_ALERT...
+  entityId  Int?     // Trỏ đến ID của Booking hoặc Message để redirect
+  
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+}
+
+// ----------------- KHIẾU NẠI (TICKET) -----------------
+model Ticket {
+  id              Int          @id @default(autoincrement())
+  title           String
+  description     String       @db.Text
+  status          TicketStatus @default(OPEN)
+  resolutionNote  String?      @db.Text
+  
+  creatorId       Int
+  creator         User         @relation("UserTickets", fields: [creatorId], references: [id])
+  
+  assignedStaffId Int?
+  assignedStaff   User?        @relation("StaffTickets", fields: [assignedStaffId], references: [id])
+  
+  bookingId       Int?         @unique
+  booking         Booking?     @relation(fields: [bookingId], references: [id])
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+// ----------------- CHAT REAL-TIME -----------------
+model Conversation {
+  id        Int       @id @default(autoincrement())
+  
+  bookingId Int?      @unique
+  booking   Booking?  @relation(fields: [bookingId], references: [id])
+  
+  participants User[] @relation("UserConversations")
+  messages     Message[]
+  
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Message {
+  id             Int          @id @default(autoincrement())
+  content        String       @db.Text
+  isRead         Boolean      @default(false)
+  
+  conversationId Int
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  
+  senderId       Int
+  sender         User         @relation(fields: [senderId], references: [id])
+  
+  createdAt      DateTime     @default(now())
+}
+
+// ----------------- NEXTAUTH DEFAULT -----------------
 model Account {
   id                Int     @id @default(autoincrement())
   userId            Int

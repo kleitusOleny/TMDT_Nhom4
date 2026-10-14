@@ -23,7 +23,7 @@ async function main() {
     create: {
       name: "Công ty TNHH Vệ sinh Sạch Bóng",
       slug: "cong-ty-tnhh-ve-sinh-sach-bong",
-      isVerified: true,
+      approvalStatus: "APPROVED",
       rating: 4.8,
       totalReviews: 256,
       area: "Quận 1, 2, 3, 7, Thủ Đức",

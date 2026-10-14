@@ -24,7 +24,7 @@ export async function GET(
             id: true,
             name: true,
             slug: true,
-            isVerified: true,
+            approvalStatus: true,
             rating: true,
             totalReviews: true,
             area: true,
