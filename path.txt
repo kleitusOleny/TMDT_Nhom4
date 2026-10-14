@@ -58,4 +58,17 @@
   Method: GET
   File: src/app/api/dich-vu/[id]/route.ts
   Mô tả: Lấy thông tin chi tiết dịch vụ vệ sinh (bảng giá, mô tả, checklist công việc, thông tin gian hàng/shop) từ bảng `DichVu`.
+
+- Lấy thông tin người dùng hiện tại (Get Current User Session):
+  URL: /api/auth/me
+  Method: GET
+  File: src/app/api/auth/me/route.ts
+  Mô tả: Kiểm tra cookie phiên đăng nhập và trả về thông tin người dùng đang đăng nhập (hoặc unauthenticated nếu chưa đăng nhập).
+
+- Đăng xuất (Auth Logout):
+  URL: /api/auth/logout
+  Method: POST
+  File: src/app/api/auth/logout/route.ts
+  Mô tả: Xóa cookie phiên đăng nhập `cleanmate_session` trên trình duyệt.
 ================================================================================
+

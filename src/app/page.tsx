@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
+import Header from "@/src/components/Header";
 import {
   Sparkles,
   MapPin,
@@ -201,60 +201,7 @@ export default function CleanMateHome() {
   return (
     <div className="min-h-screen bg-white text-slate-900 font-sans">
       {/* 1. HEADER / NAVIGATION */}
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/30 group-hover:bg-blue-700 transition">
-              <Sparkles className="w-6 h-6" />
-            </div>
-            <span className="text-2xl font-bold tracking-tight text-slate-900">
-              Clean<span className="text-blue-600">Mate</span>
-            </span>
-          </Link>
-
-          {/* Navigation Links */}
-          <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
-            <Link href="/" className="text-blue-600 font-semibold hover:text-blue-700 transition">
-              Trang chủ
-            </Link>
-            <Link href="#services" className="hover:text-blue-600 transition">
-              Dịch vụ
-            </Link>
-            <Link href="#providers" className="hover:text-blue-600 transition">
-              Đơn vị đối tác
-            </Link>
-            <Link href="#how-it-works" className="hover:text-blue-600 transition">
-              Quy trình
-            </Link>
-            <Link href="#guarantee" className="hover:text-blue-600 transition">
-              Về chúng tôi
-            </Link>
-          </nav>
-
-          {/* Action buttons */}
-          <div className="flex items-center gap-3">
-            <Link
-              href="/login"
-              className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-blue-600 transition"
-            >
-              Đăng nhập
-            </Link>
-            <Link
-              href="/register"
-              className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-200 rounded-lg hover:border-slate-300 hover:bg-slate-50 transition"
-            >
-              Đăng ký
-            </Link>
-            <a
-              href="#booking-box"
-              className="hidden sm:inline-flex px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm shadow-blue-600/30 transition items-center gap-1.5"
-            >
-              Đặt dịch vụ
-            </a>
-          </div>
-        </div>
-      </header>
+      <Header currentPath="/" showSearchOrBooking={true} />
 
       {/* 2. HERO SECTION */}
       <section className="relative pt-12 pb-20 bg-gradient-to-b from-blue-50/60 via-slate-50/30 to-white overflow-hidden">
