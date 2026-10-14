@@ -75,5 +75,11 @@
   Method: POST
   File: src/app/api/auth/logout/route.ts
   Mô tả: Xóa cookie phiên đăng nhập `cleanmate_session` trên trình duyệt.
+
+- Dữ liệu Trang chủ (Get Home Data):
+  URL: /api/home
+  Method: GET
+  File: src/app/api/home/route.ts
+  Mô tả: Lấy danh sách dịch vụ nổi bật thực tế từ DB, danh mục dịch vụ kèm số lượng, và top các shop đối tác uy tín.
 ================================================================================
 

@@ -1,7 +1,7 @@
 import { prisma } from "../src/lib/prisma";
 
 async function main() {
-  console.log("🚀 Bắt đầu đổ dữ liệu danh mục và dịch vụ mẫu vào cơ sở dữ liệu...");
+  console.log("🚀 Bắt đầu đổ dữ liệu danh mục, đối tác và dịch vụ mẫu vào cơ sở dữ liệu...");
 
   // 1. Tạo Category mẫu
   const categories = [
@@ -23,20 +23,44 @@ async function main() {
   }
 
   // 2. Tạo User chủ cửa hàng (Shop owner)
-  const owner = await prisma.user.upsert({
+  const owner1 = await prisma.user.upsert({
     where: { phone: "0909123456" },
     update: {},
     create: {
       phone: "0909123456",
       email: "contact@sachbong.vn",
-      password: "$2a$10$e7Kvh8Vz4b6nE37P8fUe/eW5G29CsqeI30X.g9.aD9W/jY.vWw6cK", // demo pass: 123456
+      password: "$2a$10$e7Kvh8Vz4b6nE37P8fUe/eW5G29CsqeI30X.g9.aD9W/jY.vWw6cK",
       fullName: "Nguyễn Văn Chủ Shop",
       dateOfBirth: new Date("1990-05-15"),
     },
   });
 
-  // 3. Tạo Shop Sạch Bóng
-  const shop = await prisma.shop.upsert({
+  const owner2 = await prisma.user.upsert({
+    where: { phone: "0908888999" },
+    update: {},
+    create: {
+      phone: "0908888999",
+      email: "cleanpro@cleanmate.vn",
+      password: "$2a$10$e7Kvh8Vz4b6nE37P8fUe/eW5G29CsqeI30X.g9.aD9W/jY.vWw6cK",
+      fullName: "Trần CleanPro",
+      dateOfBirth: new Date("1988-08-20"),
+    },
+  });
+
+  const owner3 = await prisma.user.upsert({
+    where: { phone: "0907777888" },
+    update: {},
+    create: {
+      phone: "0907777888",
+      email: "saigonxanh@cleanmate.vn",
+      password: "$2a$10$e7Kvh8Vz4b6nE37P8fUe/eW5G29CsqeI30X.g9.aD9W/jY.vWw6cK",
+      fullName: "Lê Sài Gòn Xanh",
+      dateOfBirth: new Date("1992-12-10"),
+    },
+  });
+
+  // 3. Tạo các Shop đối tác
+  const shop1 = await prisma.shop.upsert({
     where: { slug: "cong-ty-tnhh-ve-sinh-sach-bong" },
     update: { approvalStatus: "APPROVED" },
     create: {
@@ -46,11 +70,39 @@ async function main() {
       rating: 4.8,
       totalReviews: 256,
       area: "Quận 1, 2, 3, 7, Thủ Đức",
-      ownerId: owner.id,
+      ownerId: owner1.id,
     },
   });
 
-  // 4. Danh sách các dịch vụ đa dạng
+  const shop2 = await prisma.shop.upsert({
+    where: { slug: "cong-ty-tnhh-cleanpro" },
+    update: { approvalStatus: "APPROVED" },
+    create: {
+      name: "Công ty TNHH CleanPro",
+      slug: "cong-ty-tnhh-cleanpro",
+      approvalStatus: "APPROVED",
+      rating: 4.9,
+      totalReviews: 1250,
+      area: "Quận 1, 3, Bình Thạnh (TP.HCM)",
+      ownerId: owner2.id,
+    },
+  });
+
+  const shop3 = await prisma.shop.upsert({
+    where: { slug: "dich-vu-ve-sinh-sai-gon-xanh" },
+    update: { approvalStatus: "APPROVED" },
+    create: {
+      name: "Dịch vụ Vệ sinh Sài Gòn Xanh",
+      slug: "dich-vu-ve-sinh-sai-gon-xanh",
+      approvalStatus: "APPROVED",
+      rating: 4.8,
+      totalReviews: 980,
+      area: "Quận 7, Nhà Bè, Quận 4",
+      ownerId: owner3.id,
+    },
+  });
+
+  // 4. Danh sách các dịch vụ đa dạng liên kết với các Shop
   const sampleServices = [
     {
       title: "Dịch vụ vệ sinh nhà ở toàn diện",
@@ -62,6 +114,7 @@ async function main() {
       duration: "2-4 giờ",
       serviceArea: "Quận 1, 2, 3, 7, Thủ Đức",
       categorySlug: "ve-sinh-nha-o",
+      shopId: shop1.id,
       images: [
         "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1200&q=80",
         "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=1200&q=80",
@@ -81,6 +134,7 @@ async function main() {
       duration: "Theo ca / giờ",
       serviceArea: "Toàn TP. Hồ Chí Minh",
       categorySlug: "ve-sinh-van-phong",
+      shopId: shop2.id,
       images: [
         "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80",
       ],
@@ -98,6 +152,7 @@ async function main() {
       duration: "1-2 ngày",
       serviceArea: "TP. Hồ Chí Minh & Bình Dương",
       categorySlug: "ve-sinh-cong-nghiep",
+      shopId: shop3.id,
       images: [
         "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1200&q=80",
       ],
@@ -115,6 +170,7 @@ async function main() {
       duration: "1.5 - 2 giờ",
       serviceArea: "Quận 1, 3, 5, 7, Bình Thạnh, Gò Vấp",
       categorySlug: "giat-sofa-nem",
+      shopId: shop1.id,
       images: [
         "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1200&q=80",
       ],
@@ -132,6 +188,7 @@ async function main() {
       duration: "45-60 phút",
       serviceArea: "Tất cả các quận nội thành",
       categorySlug: "ve-sinh-may-lanh",
+      shopId: shop2.id,
       images: [
         "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=1200&q=80",
       ],
@@ -149,6 +206,7 @@ async function main() {
       duration: "3-5 giờ",
       serviceArea: "TP. Hồ Chí Minh",
       categorySlug: "ve-sinh-cong-nghiep",
+      shopId: shop3.id,
       images: [
         "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=1200&q=80",
       ],
@@ -172,7 +230,8 @@ async function main() {
         serviceArea: s.serviceArea,
         images: s.images,
         pricingTable: s.pricingTable,
-        categories: catId ? { connect: [{ id: catId }] } : undefined,
+        shopId: s.shopId,
+        categories: catId ? { set: [{ id: catId }] } : undefined,
       },
       create: {
         title: s.title,
@@ -185,13 +244,13 @@ async function main() {
         serviceArea: s.serviceArea,
         images: s.images,
         pricingTable: s.pricingTable,
-        shopId: shop.id,
+        shopId: s.shopId,
         categories: catId ? { connect: [{ id: catId }] } : undefined,
       },
     });
   }
 
-  console.log(`✅ Đã tạo/cập nhật thành công ${sampleServices.length} dịch vụ đa dạng!`);
+  console.log(`✅ Đã đồng bộ đầy đủ các Shop đối tác và dịch vụ mẫu!`);
 }
 
 main()
