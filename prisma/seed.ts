@@ -250,7 +250,141 @@ async function main() {
     });
   }
 
-  console.log(`✅ Đã đồng bộ đầy đủ các Shop đối tác và dịch vụ mẫu!`);
+  // 5. Seed Reviews và Bookings mẫu cho các dịch vụ
+  const customer1 = await prisma.user.upsert({
+    where: { phone: "0911223344" },
+    update: {},
+    create: {
+      phone: "0911223344",
+      email: "hoangthuylinh@gmail.com",
+      fullName: "Hoàng Thùy Linh",
+      password: "$2a$10$e7Kvh8Vz4b6nE37P8fUe/eW5G29CsqeI30X.g9.aD9W/jY.vWw6cK",
+    },
+  });
+
+  const customer2 = await prisma.user.upsert({
+    where: { phone: "0922334455" },
+    update: {},
+    create: {
+      phone: "0922334455",
+      email: "vuminhduc@gmail.com",
+      fullName: "Vũ Minh Đức",
+      password: "$2a$10$e7Kvh8Vz4b6nE37P8fUe/eW5G29CsqeI30X.g9.aD9W/jY.vWw6cK",
+    },
+  });
+
+  const customer3 = await prisma.user.upsert({
+    where: { phone: "0933445566" },
+    update: {},
+    create: {
+      phone: "0933445566",
+      email: "ngocmai@gmail.com",
+      fullName: "Trần Ngọc Mai",
+      password: "$2a$10$e7Kvh8Vz4b6nE37P8fUe/eW5G29CsqeI30X.g9.aD9W/jY.vWw6cK",
+    },
+  });
+
+  // Tìm lại dịch vụ 1 để tạo booking & review
+  const dv1 = await prisma.dichVu.findFirst({ where: { slug: "ve-sinh-nha-o-toan-dien" } });
+  if (dv1) {
+    // Booking 1
+    const b1 = await prisma.booking.upsert({
+      where: { bookingCode: "CM-BK-001" },
+      update: {},
+      create: {
+        bookingCode: "CM-BK-001",
+        scheduledDate: new Date("2026-10-01T08:00:00Z"),
+        address: "Landmark 81, P.22, Q.Bình Thạnh, TP.HCM",
+        totalPrice: 250000,
+        status: "COMPLETED",
+        isAcceptedByCustomer: true,
+        customerId: customer1.id,
+        serviceId: dv1.id,
+      },
+    });
+
+    await prisma.review.upsert({
+      where: { bookingId: b1.id },
+      update: {
+        rating: 5,
+        comment: "Nhân viên làm việc rất tỉ mỉ, sàn nhà và bếp bóng loáng sạch sẽ. Nhân viên đeo khẩu trang, mang đầy đủ đồng phục rất lịch sự. Sẽ tiếp tục ủng hộ dịch vụ định kỳ!",
+      },
+      create: {
+        bookingId: b1.id,
+        customerId: customer1.id,
+        serviceId: dv1.id,
+        rating: 5,
+        comment: "Nhân viên làm việc rất tỉ mỉ, sàn nhà và bếp bóng loáng sạch sẽ. Nhân viên đeo khẩu trang, mang đầy đủ đồng phục rất lịch sự. Sẽ tiếp tục ủng hộ dịch vụ định kỳ!",
+        images: [
+          "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=400&q=80",
+        ],
+      },
+    });
+
+    // Booking 2
+    const b2 = await prisma.booking.upsert({
+      where: { bookingCode: "CM-BK-002" },
+      update: {},
+      create: {
+        bookingCode: "CM-BK-002",
+        scheduledDate: new Date("2026-10-05T14:00:00Z"),
+        address: "Chung cư Sunrise City, Q.7, TP.HCM",
+        totalPrice: 250000,
+        status: "COMPLETED",
+        isAcceptedByCustomer: true,
+        customerId: customer2.id,
+        serviceId: dv1.id,
+      },
+    });
+
+    await prisma.review.upsert({
+      where: { bookingId: b2.id },
+      update: {
+        rating: 5,
+        comment: "Đúng giờ hẹn, tác phong nhanh nhẹn. Sử dụng dung dịch tẩy rửa sinh học không hề có mùi hắc độc hại, rất an tâm vì nhà mình có con nhỏ.",
+      },
+      create: {
+        bookingId: b2.id,
+        customerId: customer2.id,
+        serviceId: dv1.id,
+        rating: 5,
+        comment: "Đúng giờ hẹn, tác phong nhanh nhẹn. Sử dụng dung dịch tẩy rửa sinh học không hề có mùi hắc độc hại, rất an tâm vì nhà mình có con nhỏ.",
+      },
+    });
+
+    // Booking 3
+    const b3 = await prisma.booking.upsert({
+      where: { bookingCode: "CM-BK-003" },
+      update: {},
+      create: {
+        bookingCode: "CM-BK-003",
+        scheduledDate: new Date("2026-10-10T09:30:00Z"),
+        address: "Masteri Thảo Điền, TP.Thủ Đức, TP.HCM",
+        totalPrice: 250000,
+        status: "COMPLETED",
+        isAcceptedByCustomer: true,
+        customerId: customer3.id,
+        serviceId: dv1.id,
+      },
+    });
+
+    await prisma.review.upsert({
+      where: { bookingId: b3.id },
+      update: {
+        rating: 4,
+        comment: "Dịch vụ ổn áp, các góc kẹt tủ lạnh và chân bàn được hút bụi cẩn thận. Giá cả phải chăng, lần sau sẽ book tiếp.",
+      },
+      create: {
+        bookingId: b3.id,
+        customerId: customer3.id,
+        serviceId: dv1.id,
+        rating: 4,
+        comment: "Dịch vụ ổn áp, các góc kẹt tủ lạnh và chân bàn được hút bụi cẩn thận. Giá cả phải chăng, lần sau sẽ book tiếp.",
+      },
+    });
+  }
+
+  console.log(`✅ Đã đồng bộ đầy đủ các Shop đối tác, dịch vụ và đánh giá mẫu!`);
 }
 
 main()

@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Loader2,
   AlertCircle,
+  User,
 } from "lucide-react";
 
 interface PricingOption {
@@ -22,6 +23,19 @@ interface PricingOption {
   sub: string;
   price: number;
   unit: string;
+}
+
+interface ReviewItem {
+  id: number;
+  rating: number;
+  comment: string | null;
+  images: string[] | string | null;
+  createdAt: string;
+  customer: {
+    id: number;
+    fullName: string | null;
+    image?: string | null;
+  };
 }
 
 interface DichVuData {
@@ -41,11 +55,12 @@ interface DichVuData {
     id: number;
     name: string;
     slug: string;
-    isVerified: boolean;
+    approvalStatus: string;
     rating: number;
     totalReviews: number;
     area: string | null;
   };
+  reviews?: ReviewItem[];
 }
 
 function DichVuContent({ serviceId }: { serviceId: string }) {
@@ -196,9 +211,9 @@ function DichVuContent({ serviceId }: { serviceId: string }) {
                 <span className="text-sm font-bold text-slate-800">
                   {dichVu.shop.name}
                 </span>
-                {dichVu.shop.isVerified && (
+                {dichVu.shop.approvalStatus === "APPROVED" && (
                   <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Đã xác minh
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Đã xác thực
                   </span>
                 )}
               </div>
@@ -301,34 +316,114 @@ function DichVuContent({ serviceId }: { serviceId: string }) {
             )}
 
             {activeTab === "reviews" && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-4 p-5 rounded-2xl bg-slate-50 border border-slate-100">
-                  <div className="text-4xl font-extrabold text-blue-600">{dichVu.rating}</div>
-                  <div>
-                    <div className="flex text-amber-400">
+              <div className="space-y-6">
+                {/* Tổng quan xếp hạng */}
+                <div className="flex flex-col sm:flex-row items-center gap-6 p-6 rounded-2xl bg-slate-50/80 border border-slate-100">
+                  <div className="text-center sm:text-left">
+                    <div className="text-5xl font-black text-blue-600">{dichVu.rating}</div>
+                    <div className="flex text-amber-400 justify-center sm:justify-start mt-1">
                       {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="w-4 h-4 fill-amber-400" />
+                        <Star
+                          key={i}
+                          className={`w-4 h-4 ${
+                            i < Math.round(dichVu.rating)
+                              ? "fill-amber-400 text-amber-400"
+                              : "text-slate-200"
+                          }`}
+                        />
                       ))}
                     </div>
-                    <div className="text-xs text-slate-500 mt-1">Dựa trên {dichVu.totalReviews} đánh giá đã xác thực</div>
+                    <div className="text-xs text-slate-500 mt-1 font-medium">
+                      {dichVu.reviews?.length || dichVu.totalReviews} đánh giá đã xác minh
+                    </div>
+                  </div>
+
+                  <div className="flex-1 w-full border-t sm:border-t-0 sm:border-l border-slate-200/80 pt-4 sm:pt-0 sm:pl-6 space-y-1.5 text-xs text-slate-600">
+                    <p className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span>100% đánh giá đến từ khách hàng đã hoàn thành đơn dịch vụ trên hệ thống</span>
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-blue-500 shrink-0" />
+                      <span>Được kiểm duyệt và đảm bảo tính trung thực bởi CleanMate</span>
+                    </p>
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <div className="p-4 rounded-xl border border-slate-100 bg-white shadow-sm">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-bold text-sm text-slate-900">Hoàng Thuỳ Linh</span>
-                      <span className="text-xs text-slate-400">2 ngày trước</span>
+                {/* Danh sách đánh giá lấy từ Database */}
+                <div className="space-y-4">
+                  {!dichVu.reviews || dichVu.reviews.length === 0 ? (
+                    <div className="p-8 text-center bg-white rounded-2xl border border-slate-100">
+                      <p className="text-sm text-slate-500">Chưa có đánh giá nào cho dịch vụ này.</p>
                     </div>
-                    <p className="text-xs text-slate-600">Nhân viên làm việc rất tỉ mỉ, sàn nhà và bếp bóng loáng sạch sẽ. Sẽ tiếp tục đặt lại!</p>
-                  </div>
-                  <div className="p-4 rounded-xl border border-slate-100 bg-white shadow-sm">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-bold text-sm text-slate-900">Vũ Minh Đức</span>
-                      <span className="text-xs text-slate-400">1 tuần trước</span>
-                    </div>
-                    <p className="text-xs text-slate-600">Đúng giờ, mang đầy đủ thiết bị và nước tẩy rửa chuyên dụng an toàn cho nhà có em bé.</p>
-                  </div>
+                  ) : (
+                    dichVu.reviews.map((rev) => (
+                      <div
+                        key={rev.id}
+                        className="p-5 rounded-2xl border border-slate-200/80 bg-white shadow-xs hover:border-slate-300 transition"
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
+                              {rev.customer?.fullName ? rev.customer.fullName[0].toUpperCase() : <User className="w-4 h-4" />}
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-sm text-slate-900">
+                                {rev.customer?.fullName || "Khách hàng CleanMate"}
+                              </h4>
+                              <div className="flex items-center gap-2">
+                                <div className="flex text-amber-400">
+                                  {[...Array(5)].map((_, i) => (
+                                    <Star
+                                      key={i}
+                                      className={`w-3.5 h-3.5 ${
+                                        i < rev.rating
+                                          ? "fill-amber-400 text-amber-400"
+                                          : "text-slate-200"
+                                      }`}
+                                    />
+                                  ))}
+                                </div>
+                                <span className="text-[11px] text-slate-400">
+                                  {new Date(rev.createdAt).toLocaleDateString("vi-VN", {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric",
+                                  })}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Đã sử dụng dịch vụ
+                          </span>
+                        </div>
+
+                        {rev.comment && (
+                          <p className="text-xs sm:text-sm text-slate-700 leading-relaxed mt-2">
+                            {rev.comment}
+                          </p>
+                        )}
+
+                        {/* Hình ảnh đánh giá nếu có */}
+                        {rev.images && (
+                          <div className="flex items-center gap-2 mt-3 overflow-x-auto">
+                            {(Array.isArray(rev.images) ? rev.images : [rev.images]).map((imgSrc, imgIdx) => (
+                              <div key={imgIdx} className="relative w-16 h-16 rounded-xl overflow-hidden border border-slate-200 shrink-0">
+                                <Image
+                                  src={typeof imgSrc === "string" ? imgSrc : ""}
+                                  alt="Ảnh phản hồi"
+                                  fill
+                                  className="object-cover"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             )}

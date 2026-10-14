@@ -30,6 +30,23 @@ export async function GET(
             area: true,
           },
         },
+        reviews: {
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            rating: true,
+            comment: true,
+            images: true,
+            createdAt: true,
+            customer: {
+              select: {
+                id: true,
+                fullName: true,
+                image: true,
+              },
+            },
+          },
+        },
       },
     });
 
