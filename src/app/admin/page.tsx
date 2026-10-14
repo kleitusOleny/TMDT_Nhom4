@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Sparkles,
   BarChart3,
@@ -20,6 +21,7 @@ import {
   ShieldCheck,
   Building2,
   Plus,
+  Loader2,
   ArrowUpRight,
   Eye,
   Check,
@@ -38,7 +40,12 @@ import InteractiveDonutChart, {
 import { UserRecord, ServiceRecord, BookingRecord } from "@/src/lib/admin-data";
 
 export default function AdminDashboardPage() {
+  const router = useRouter();
   const [, startTransition] = useTransition();
+
+  // Kiểm tra xác thực quyền ADMIN
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [isAuthorized, setIsAuthorized] = useState(false);
 
   // Chế độ xem: "ADMIN" (Toàn sàn) hoặc "SELLER" (Kênh Người Bán)
   const [viewMode, setViewMode] = useState<"ADMIN" | "SELLER">("ADMIN");
@@ -162,15 +169,56 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // Kiểm tra vai trò quyền ADMIN trước khi cho phép xem dashboard
   useEffect(() => {
+    let isCancelled = false;
+
+    async function verifyAdminRole() {
+      try {
+        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        const data = await res.json();
+
+        if (!res.ok || !data.authenticated || data.user?.role !== "ADMIN") {
+          if (!isCancelled) {
+            setIsAuthorized(false);
+            setIsCheckingAuth(false);
+            router.replace("/login");
+          }
+          return;
+        }
+
+        if (!isCancelled) {
+          setIsAuthorized(true);
+          setIsCheckingAuth(false);
+        }
+      } catch (err) {
+        console.error("Lỗi xác thực quyền ADMIN:", err);
+        if (!isCancelled) {
+          setIsAuthorized(false);
+          setIsCheckingAuth(false);
+          router.replace("/login");
+        }
+      }
+    }
+
+    verifyAdminRole();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [router]);
+
+  useEffect(() => {
+    if (!isAuthorized) return;
     const timeoutId = window.setTimeout(() => {
       fetchAnalytics();
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
-  }, [viewMode, selectedSellerId, fromDate, toDate]);
+  }, [viewMode, selectedSellerId, fromDate, toDate, isAuthorized]);
 
   useEffect(() => {
+    if (!isAuthorized) return;
     const timeoutId = window.setTimeout(() => {
       if (activeTab === "users") fetchUsers();
       if (activeTab === "services") fetchServices();
@@ -325,6 +373,33 @@ export default function AdminDashboardPage() {
       maximumFractionDigits: 0,
     }).format(num || 0);
   };
+
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white text-slate-800">
+        <Loader2 className="w-10 h-10 animate-spin text-blue-600 mb-4" />
+        <p className="text-sm font-semibold text-slate-600">Đang xác thực quyền Quản trị viên (ADMIN)...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthorized) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white text-slate-800 p-6 text-center">
+        <AlertCircle className="w-12 h-12 text-rose-500 mb-4" />
+        <h2 className="text-xl font-bold text-slate-900 mb-2">Truy cập bị từ chối</h2>
+        <p className="text-sm text-slate-500 max-w-md mb-6">
+          Trang này chỉ dành riêng cho tài khoản có vai trò Quản Trị Viên (ADMIN).
+        </p>
+        <Link
+          href="/login"
+          className="px-5 py-2.5 bg-blue-600 text-white font-semibold text-sm rounded-xl hover:bg-blue-700 transition"
+        >
+          Đăng nhập bằng tài khoản ADMIN
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col">

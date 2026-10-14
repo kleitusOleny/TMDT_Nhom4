@@ -22,7 +22,21 @@ async function main() {
     catMap[cat.slug] = createdCat.id;
   }
 
-  // 2. Tạo User chủ cửa hàng (Shop owner)
+  // 2. Tạo Tài khoản Quản Trị Viên (ADMIN)
+  await prisma.user.upsert({
+    where: { phone: "0901234567" },
+    update: { role: "ADMIN" },
+    create: {
+      phone: "0901234567",
+      email: "admin@cleanmate.vn",
+      password: "$2a$10$e7Kvh8Vz4b6nE37P8fUe/eW5G29CsqeI30X.g9.aD9W/jY.vWw6cK", // demo pass: 123456
+      fullName: "Quản Trị Viên CleanMate",
+      role: "ADMIN",
+      dateOfBirth: new Date("1985-01-01"),
+    },
+  });
+
+  // 3. Tạo User chủ cửa hàng (Shop owner)
   const owner1 = await prisma.user.upsert({
     where: { phone: "0909123456" },
     update: {},

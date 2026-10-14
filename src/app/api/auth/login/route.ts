@@ -2,16 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/src/lib/prisma";
 import bcrypt from "bcryptjs";
 
-// Thông tin tài khoản Admin mặc định của hệ thống
-const DEFAULT_ADMIN = {
-  id: 1,
-  fullName: "Quản Trị Viên CleanMate",
-  phone: "0901234567",
-  email: "admin@cleanmate.vn",
-  role: "ADMIN",
-  passwords: ["admin123", "123456"],
-};
-
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -26,46 +16,7 @@ export async function POST(req: NextRequest) {
 
     const trimmedIdentifier = identifier.trim();
 
-    // 1. KIỂM TRA ĐĂNG NHẬP VỚI TÀI KHOẢN ADMIN HỆ THỐNG
-    const isAdminIdentifier =
-      trimmedIdentifier === DEFAULT_ADMIN.phone ||
-      trimmedIdentifier.toLowerCase() === DEFAULT_ADMIN.email.toLowerCase() ||
-      trimmedIdentifier.toLowerCase() === "admin";
-
-    if (isAdminIdentifier) {
-      if (DEFAULT_ADMIN.passwords.includes(password)) {
-        const response = NextResponse.json(
-          {
-            success: true,
-            message: "Đăng nhập Quản Trị Viên thành công! Đang chuyển hướng đến trang Admin...",
-            user: {
-              id: DEFAULT_ADMIN.id,
-              fullName: DEFAULT_ADMIN.fullName,
-              phone: DEFAULT_ADMIN.phone,
-              email: DEFAULT_ADMIN.email,
-              role: DEFAULT_ADMIN.role,
-            },
-          },
-          { status: 200 }
-        );
-
-        response.cookies.set("cleanmate_session", String(DEFAULT_ADMIN.id), {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          maxAge: rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24,
-          path: "/",
-        });
-
-        return response;
-      } else {
-        return NextResponse.json(
-          { message: "Mật khẩu Admin không chính xác (Mặc định: admin123 hoặc 123456)" },
-          { status: 401 }
-        );
-      }
-    }
-
-    // 2. NẾU KHÔNG PHẢI ADMIN MẶC ĐỊNH, TÌM KIẾM TRONG DATABASE MYSQL
+    // Tìm kiếm người dùng trong Database MySQL qua email hoặc phone
     let user = null;
     try {
       user = await prisma.user.findFirst({
@@ -88,6 +39,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Kiểm tra tài khoản có bị khóa không
+    if (!user.isActive) {
+      return NextResponse.json(
+        { message: "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên." },
+        { status: 403 }
+      );
+    }
+
     // Kiểm tra mật khẩu (hỗ trợ hash bcrypt và fallback plain text)
     let isPasswordValid = false;
     if (user.password.startsWith("$2a$") || user.password.startsWith("$2b$")) {
@@ -103,17 +62,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Đăng nhập thành công cho người dùng thường
+    // Đăng nhập thành công
     const { password: _password, ...userData } = user;
     void _password;
+
+    const isUserAdmin = user.role === "ADMIN";
 
     const response = NextResponse.json(
       {
         success: true,
-        message: "Đăng nhập thành công! Đang chuyển hướng...",
+        message: isUserAdmin
+          ? "Đăng nhập Quản Trị Viên thành công! Đang chuyển hướng..."
+          : "Đăng nhập thành công! Đang chuyển hướng...",
         user: {
           ...userData,
-          role: (user as Record<string, unknown>).role || "CUSTOMER",
+          role: user.role,
         },
       },
       { status: 200 }
