@@ -66,8 +66,8 @@ model Account {
   id                Int     @id @default(autoincrement())
   userId            Int
   type              String
-  provider          String
-  providerAccountId String
+  provider          String  @db.VarChar(100)
+  providerAccountId String  @db.VarChar(100)
   refresh_token     String? @db.Text
   access_token      String? @db.Text
   expires_at        Int?
@@ -82,15 +82,15 @@ model Account {
 
 model Session {
   id           Int      @id @default(autoincrement())
-  sessionToken String   @unique
+  sessionToken String   @unique @db.VarChar(191)
   userId       Int
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model VerificationToken {
-  identifier String
-  token      String   @unique
+  identifier String   @db.VarChar(100)
+  token      String   @unique @db.VarChar(100)
   expires    DateTime
 
   @@unique([identifier, token])
