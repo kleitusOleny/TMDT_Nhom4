@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  generateDailyStats,
-  initialBookings,
-  initialServices,
-  initialUsers,
-} from "@/src/lib/admin-data";
+import prisma from "@/src/lib/prisma";
+import { BookingStatus, Role } from "@/src/generated/prisma/client";
+import { DailyRevenueRecord } from "@/src/lib/admin-data";
 
 export async function GET(req: NextRequest) {
   try {
@@ -17,29 +14,117 @@ export async function GET(req: NextRequest) {
     defaultFromDate.setDate(defaultFromDate.getDate() - 6);
     const defaultFrom = defaultFromDate.toISOString().split("T")[0];
 
-    const from = searchParams.get("from") || defaultFrom;
-    const to = searchParams.get("to") || defaultTo;
+    const fromStr = searchParams.get("from") || defaultFrom;
+    const toStr = searchParams.get("to") || defaultTo;
 
-    // 1. Dữ liệu biểu đồ cột theo mốc thời gian lọc
-    const columnChartData = generateDailyStats(from, to);
+    const fromDate = new Date(`${fromStr}T00:00:00.000Z`);
+    const toDate = new Date(`${toStr}T23:59:59.999Z`);
 
-    // Tính toán KPI trong khoảng thời gian đã lọc
+    // Lấy toàn bộ đơn hàng trong cơ sở dữ liệu
+    const [allBookings, rangeBookings, totalUsersCount, totalSellersCount, topServicesDb] = await Promise.all([
+      // Tất cả đơn hàng (để vẽ Donut status & payment)
+      prisma.booking.findMany({
+        include: {
+          service: {
+            include: {
+              categories: { select: { name: true }, take: 1 },
+              shop: { select: { id: true, name: true } },
+            },
+          },
+          payment: { select: { method: true, status: true } },
+        },
+      }),
+
+      // Đơn hàng nằm trong khoảng ngày được chọn (để vẽ biểu đồ cột theo ngày)
+      prisma.booking.findMany({
+        where: {
+          scheduledDate: {
+            gte: fromDate,
+            lte: toDate,
+          },
+        },
+        include: {
+          service: {
+            include: {
+              categories: { select: { name: true }, take: 1 },
+              shop: { select: { id: true, name: true } },
+            },
+          },
+        },
+        orderBy: { scheduledDate: "asc" },
+      }),
+
+      // Tổng số người dùng thực tế
+      prisma.user.count(),
+
+      // Tổng số nhà cung cấp (Shop hoặc PROVIDER)
+      prisma.shop.count(),
+
+      // Top dịch vụ thực tế
+      prisma.dichVu.findMany({
+        where: { isActive: true },
+        take: 4,
+        orderBy: { rating: "desc" },
+        include: {
+          shop: { select: { id: true, name: true } },
+          categories: { select: { name: true, slug: true }, take: 1 },
+          _count: { select: { bookings: true } },
+        },
+      }),
+    ]);
+
+    // 1. Tạo biểu đồ cột theo từng ngày trong khoảng from -> to
+    const dailyMap: Record<string, DailyRevenueRecord> = {};
+    const curDate = new Date(fromDate);
+    while (curDate <= toDate) {
+      const dStr = curDate.toISOString().split("T")[0];
+      const parts = dStr.split("-");
+      dailyMap[dStr] = {
+        date: dStr,
+        formattedDate: `${parts[2]}/${parts[1]}`,
+        totalRevenue: 0,
+        platformFee: 0,
+        sellerRevenue: 0,
+        orderCount: 0,
+      };
+      curDate.setDate(curDate.getDate() + 1);
+    }
+
+    rangeBookings.forEach((b) => {
+      const dStr = new Date(b.scheduledDate).toISOString().split("T")[0];
+      if (dailyMap[dStr]) {
+        const amt = Number(b.totalPrice);
+        const fee = Math.round(amt * 0.15); // Phí sàn 15%
+        dailyMap[dStr].totalRevenue += amt;
+        dailyMap[dStr].platformFee += fee;
+        dailyMap[dStr].sellerRevenue += amt - fee;
+        dailyMap[dStr].orderCount += 1;
+      }
+    });
+
+    const columnChartData = Object.values(dailyMap);
+
+    // Tính toán KPI trong khoảng thời gian
     const totalRevenue = columnChartData.reduce((sum, d) => sum + d.totalRevenue, 0);
     const platformFee = columnChartData.reduce((sum, d) => sum + d.platformFee, 0);
     const totalOrders = columnChartData.reduce((sum, d) => sum + d.orderCount, 0);
 
-    // 2. Dữ liệu biểu đồ tròn: Phân bổ trạng thái đơn hàng (Donut Status)
-    const statusCounts = {
+    // 2. Phân bổ trạng thái đơn hàng (Donut Status)
+    const statusCounts: Record<BookingStatus, number> = {
       COMPLETED: 0,
       IN_PROGRESS: 0,
       CONFIRMED: 0,
       PENDING: 0,
       CANCELLED: 0,
     };
-    initialBookings.forEach((b) => {
-      statusCounts[b.status] = (statusCounts[b.status] || 0) + 1;
+
+    allBookings.forEach((b) => {
+      if (statusCounts[b.status] !== undefined) {
+        statusCounts[b.status] += 1;
+      }
     });
-    const totalAllBookings = initialBookings.length || 1;
+
+    const totalAllBookings = allBookings.length || 1;
 
     const donutStatusData = [
       {
@@ -47,43 +132,44 @@ export async function GET(req: NextRequest) {
         key: "COMPLETED",
         count: statusCounts.COMPLETED,
         percentage: Math.round((statusCounts.COMPLETED / totalAllBookings) * 100),
-        color: "#10b981", // Emerald-500
+        color: "#10b981",
       },
       {
         name: "Đang dọn dẹp",
         key: "IN_PROGRESS",
         count: statusCounts.IN_PROGRESS,
         percentage: Math.round((statusCounts.IN_PROGRESS / totalAllBookings) * 100),
-        color: "#3b82f6", // Blue-500
+        color: "#3b82f6",
       },
       {
         name: "Đã xác nhận",
         key: "CONFIRMED",
         count: statusCounts.CONFIRMED,
         percentage: Math.round((statusCounts.CONFIRMED / totalAllBookings) * 100),
-        color: "#8b5cf6", // Purple-500
+        color: "#8b5cf6",
       },
       {
         name: "Chờ duyệt",
         key: "PENDING",
         count: statusCounts.PENDING,
         percentage: Math.round((statusCounts.PENDING / totalAllBookings) * 100),
-        color: "#f59e0b", // Amber-500
+        color: "#f59e0b",
       },
       {
         name: "Đã hủy",
         key: "CANCELLED",
         count: statusCounts.CANCELLED,
         percentage: Math.round((statusCounts.CANCELLED / totalAllBookings) * 100),
-        color: "#f43f5e", // Rose-500
+        color: "#f43f5e",
       },
     ];
 
-    // 3. Dữ liệu biểu đồ tròn: Phân bổ doanh thu theo Danh mục dịch vụ (Donut Category)
+    // 3. Phân bổ doanh thu theo Danh mục dịch vụ (Donut Category)
     const categoryRevenueMap: Record<string, number> = {};
-    initialBookings.forEach((b) => {
+    allBookings.forEach((b) => {
       if (b.status !== "CANCELLED") {
-        categoryRevenueMap[b.category] = (categoryRevenueMap[b.category] || 0) + b.totalAmount;
+        const catName = b.service.categories[0]?.name || "Khác";
+        categoryRevenueMap[catName] = (categoryRevenueMap[catName] || 0) + Number(b.totalPrice);
       }
     });
 
@@ -96,17 +182,21 @@ export async function GET(req: NextRequest) {
       color: categoryColors[index % categoryColors.length],
     }));
 
-    // 4. Dữ liệu biểu đồ tròn: Phân bổ phương thức thanh toán (Donut Payment)
+    // 4. Phân bổ phương thức thanh toán (Donut Payment)
     const paymentMap: Record<string, number> = {};
-    initialBookings.forEach((b) => {
-      paymentMap[b.paymentMethod] = (paymentMap[b.paymentMethod] || 0) + 1;
+    allBookings.forEach((b) => {
+      const method = b.payment?.method || "CASH";
+      paymentMap[method] = (paymentMap[method] || 0) + 1;
     });
+
     const paymentLabels: Record<string, { label: string; color: string }> = {
       VNPAY: { label: "Cổng VNPAY", color: "#0284c7" },
       MOMO: { label: "Ví MoMo", color: "#d946ef" },
-      QR_BANKING: { label: "Chuyển khoản QR", color: "#10b981" },
+      BANK_TRANSFER: { label: "Chuyển khoản QR", color: "#10b981" },
       CASH: { label: "Tiền mặt (COD)", color: "#f59e0b" },
+      CREDIT_CARD: { label: "Thẻ quốc tế", color: "#6366f1" },
     };
+
     const donutPaymentData = Object.entries(paymentMap).map(([method, count]) => {
       const info = paymentLabels[method] || { label: method, color: "#64748b" };
       return {
@@ -117,17 +207,49 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    // 5. Top Dịch vụ và Top Đối tác
-    const topServices = initialServices
-      .slice()
-      .sort((a, b) => b.completedBookings - a.completedBookings)
-      .slice(0, 4);
+    // 5. Top Dịch vụ và Top Đối tác từ Database
+    const topServices = topServicesDb.map((s) => ({
+      id: s.id,
+      name: s.title,
+      category: s.categories[0]?.slug || "home",
+      categoryName: s.categories[0]?.name || "Vệ sinh",
+      sellerId: s.shop.id,
+      sellerName: s.shop.name,
+      price: Number(s.priceStart),
+      unit: s.duration || "gói",
+      status: s.isActive ? "APPROVED" : "INACTIVE",
+      rating: s.rating,
+      completedBookings: s._count.bookings,
+    }));
 
-    const sellers = initialUsers.filter((u) => u.role === "SELLER");
+    // Lấy các shop đã duyệt
+    const approvedShops = await prisma.shop.findMany({
+      where: { approvalStatus: "APPROVED" },
+      select: {
+        id: true,
+        name: true,
+        rating: true,
+        totalReviews: true,
+        owner: { select: { fullName: true, phone: true, email: true } },
+      },
+      take: 5,
+    });
+
+    const topSellers = approvedShops.map((sh) => ({
+      id: sh.id,
+      fullName: sh.owner.fullName || "Chủ cửa hàng",
+      phone: sh.owner.phone || "---",
+      email: sh.owner.email,
+      role: Role.PROVIDER,
+      status: "ACTIVE",
+      sellerName: sh.name,
+      rating: sh.rating,
+      totalReviews: sh.totalReviews,
+    }));
 
     return NextResponse.json({
       success: true,
-      timeRange: { from, to },
+      timeRange: { from: fromStr, to: toStr },
       kpi: {
         totalRevenue,
         platformFee,
@@ -136,17 +258,22 @@ export async function GET(req: NextRequest) {
         completedRate: Math.round(
           ((statusCounts.COMPLETED + statusCounts.IN_PROGRESS) / totalAllBookings) * 100
         ),
-        totalUsers: initialUsers.length,
-        totalSellers: sellers.length,
+        totalUsers: totalUsersCount,
+        totalSellers: totalSellersCount,
       },
       charts: {
         columnChartData,
         donutStatusData,
-        donutCategoryData,
-        donutPaymentData,
+        donutCategoryData: donutCategoryData.length > 0 ? donutCategoryData : [
+          { name: "Chưa có dữ liệu", revenue: 0, percentage: 100, color: "#cbd5e1" },
+        ],
+        donutPaymentData: donutPaymentData.length > 0 ? donutPaymentData : [
+          { name: "Tiền mặt (COD)", count: 1, percentage: 100, color: "#f59e0b" },
+        ],
       },
       topServices,
-      topSellers: sellers,
+      topSellers,
+      shops: approvedShops.map((sh) => ({ id: sh.id, name: sh.name })),
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Internal Server Error";

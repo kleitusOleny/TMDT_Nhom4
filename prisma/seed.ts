@@ -398,6 +398,112 @@ async function main() {
     });
   }
 
+  // Thêm đơn hàng cho các dịch vụ khác (Sofa, Máy lạnh, Lau kính)
+  const allServices = await prisma.dichVu.findMany();
+  const dvSofa = allServices.find((s) => s.slug === "giat-sofa-nem-tai-nha");
+  const dvMayLanh = allServices.find((s) => s.slug === "ve-sinh-may-lanh-inverter");
+  const dvLauKinh = allServices.find((s) => s.slug === "lau-kinh-mat-ngoai-can-ho");
+
+  if (dvSofa) {
+    await prisma.booking.upsert({
+      where: { bookingCode: "CM-BK-004" },
+      update: {},
+      create: {
+        bookingCode: "CM-BK-004",
+        scheduledDate: new Date("2026-10-07T10:00:00Z"),
+        address: "Vinhomes Central Park, Bình Thạnh",
+        totalPrice: 350000,
+        status: "COMPLETED",
+        customerId: customer1.id,
+        serviceId: dvSofa.id,
+      },
+    });
+    await prisma.booking.upsert({
+      where: { bookingCode: "CM-BK-005" },
+      update: {},
+      create: {
+        bookingCode: "CM-BK-005",
+        scheduledDate: new Date("2026-10-11T15:30:00Z"),
+        address: "Khu đô thị Sala, Q.2",
+        totalPrice: 700000,
+        status: "IN_PROGRESS",
+        customerId: customer2.id,
+        serviceId: dvSofa.id,
+      },
+    });
+  }
+
+  if (dvMayLanh) {
+    await prisma.booking.upsert({
+      where: { bookingCode: "CM-BK-006" },
+      update: {},
+      create: {
+        bookingCode: "CM-BK-006",
+        scheduledDate: new Date("2026-10-08T09:00:00Z"),
+        address: "Chung cư Phú Mỹ Hưng, Q.7",
+        totalPrice: 360000,
+        status: "COMPLETED",
+        customerId: customer3.id,
+        serviceId: dvMayLanh.id,
+      },
+    });
+    await prisma.booking.upsert({
+      where: { bookingCode: "CM-BK-007" },
+      update: {},
+      create: {
+        bookingCode: "CM-BK-007",
+        scheduledDate: new Date("2026-10-12T13:00:00Z"),
+        address: "Hà Đô Centrosa, Q.10",
+        totalPrice: 540000,
+        status: "CONFIRMED",
+        customerId: customer1.id,
+        serviceId: dvMayLanh.id,
+      },
+    });
+    await prisma.booking.upsert({
+      where: { bookingCode: "CM-BK-008" },
+      update: {},
+      create: {
+        bookingCode: "CM-BK-008",
+        scheduledDate: new Date("2026-10-13T16:00:00Z"),
+        address: "The Sun Avenue, TP.Thủ Đức",
+        totalPrice: 180000,
+        status: "PENDING",
+        customerId: customer2.id,
+        serviceId: dvMayLanh.id,
+      },
+    });
+  }
+
+  if (dvLauKinh) {
+    await prisma.booking.upsert({
+      where: { bookingCode: "CM-BK-009" },
+      update: {},
+      create: {
+        bookingCode: "CM-BK-009",
+        scheduledDate: new Date("2026-10-09T08:30:00Z"),
+        address: "Imperia An Phú, Q.2",
+        totalPrice: 600000,
+        status: "COMPLETED",
+        customerId: customer2.id,
+        serviceId: dvLauKinh.id,
+      },
+    });
+    await prisma.booking.upsert({
+      where: { bookingCode: "CM-BK-010" },
+      update: {},
+      create: {
+        bookingCode: "CM-BK-010",
+        scheduledDate: new Date("2026-10-14T10:00:00Z"),
+        address: "Gold View, Bến Vân Đồn, Q.4",
+        totalPrice: 1200000,
+        status: "IN_PROGRESS",
+        customerId: customer3.id,
+        serviceId: dvLauKinh.id,
+      },
+    });
+  }
+
   console.log(`✅ Đã đồng bộ đầy đủ các Shop đối tác, dịch vụ và đánh giá mẫu!`);
 }
 

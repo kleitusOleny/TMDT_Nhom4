@@ -69,6 +69,7 @@ export default function AdminDashboardPage() {
   const [donutPayment, setDonutPayment] = useState<DonutItem[]>([]);
   const [kpiData, setKpiData] = useState<Record<string, number>>({});
   const [loadingAnalytics, setLoadingAnalytics] = useState(true);
+  const [shopsList, setShopsList] = useState<{ id: number; name: string }[]>([]);
 
   // State quản lý danh sách
   const [usersList, setUsersList] = useState<UserRecord[]>([]);
@@ -109,17 +110,23 @@ export default function AdminDashboardPage() {
       const res = await fetch(endpoint);
       const json = await res.json();
       if (json.success) {
-        setColumnData(json.charts.columnChartData || []);
-        setDonutStatus(json.charts.donutStatusData || []);
+        setColumnData(json.charts?.columnChartData || []);
+        setDonutStatus(json.charts?.donutStatusData || []);
         setDonutCategory(
           viewMode === "ADMIN"
-            ? json.charts.donutCategoryData || []
-            : json.charts.donutServiceData || []
+            ? json.charts?.donutCategoryData || []
+            : json.charts?.donutServiceData || []
         );
-        if (json.charts.donutPaymentData) {
+        if (json.charts?.donutPaymentData) {
           setDonutPayment(json.charts.donutPaymentData);
         }
         setKpiData(json.kpi || {});
+        if (json.shops && json.shops.length > 0) {
+          setShopsList(json.shops);
+          if (!selectedSellerId && json.shops[0]) {
+            setSelectedSellerId(json.shops[0].id);
+          }
+        }
       }
     } catch (err) {
       console.error("Lỗi tải thống kê:", err);
@@ -472,9 +479,19 @@ export default function AdminDashboardPage() {
                   onChange={(e) => setSelectedSellerId(Number(e.target.value))}
                   className="bg-white border border-slate-200 text-xs font-semibold py-1.5 px-2.5 rounded-xl shadow-xs text-slate-800 outline-none cursor-pointer focus:border-blue-500"
                 >
-                  <option value={2}>CleanPro (id: 2)</option>
-                  <option value={3}>Sài Gòn Xanh (id: 3)</option>
-                  <option value={4}>CleanPlus (id: 4)</option>
+                  {shopsList.length > 0 ? (
+                    shopsList.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} (id: {s.id})
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value={1}>Vệ sinh Sạch Bóng (id: 1)</option>
+                      <option value={2}>CleanPro (id: 2)</option>
+                      <option value={3}>Sài Gòn Xanh (id: 3)</option>
+                    </>
+                  )}
                 </select>
               </div>
             )}

@@ -1,29 +1,73 @@
 import { NextRequest, NextResponse } from "next/server";
-import { initialUsers, UserRecord } from "@/src/lib/admin-data";
-
-// Bộ nhớ in-memory giả lập cho phiên làm việc
-const usersStore: UserRecord[] = [...initialUsers];
+import prisma from "@/src/lib/prisma";
+import { Role } from "@/src/generated/prisma/client";
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const role = searchParams.get("role");
-  const query = searchParams.get("q")?.toLowerCase();
+  try {
+    const { searchParams } = new URL(req.url);
+    const roleParam = searchParams.get("role");
+    const query = searchParams.get("q")?.toLowerCase();
 
-  let filtered = usersStore;
-  if (role && role !== "ALL") {
-    filtered = filtered.filter((u) => u.role === role);
-  }
-  if (query) {
-    filtered = filtered.filter(
-      (u) =>
-        u.fullName.toLowerCase().includes(query) ||
-        u.phone.includes(query) ||
-        (u.email && u.email.toLowerCase().includes(query)) ||
-        (u.sellerName && u.sellerName.toLowerCase().includes(query))
-    );
-  }
+    const where: Record<string, unknown> = {};
 
-  return NextResponse.json({ success: true, users: filtered });
+    if (roleParam && roleParam !== "ALL") {
+      // Chuẩn hóa role
+      if (roleParam === "SELLER") {
+        where.role = Role.PROVIDER;
+      } else if (Object.values(Role).includes(roleParam as Role)) {
+        where.role = roleParam as Role;
+      }
+    }
+
+    if (query) {
+      where.OR = [
+        { fullName: { contains: query } },
+        { phone: { contains: query } },
+        { email: { contains: query } },
+        {
+          shops: {
+            some: {
+              name: { contains: query },
+            },
+          },
+        },
+      ];
+    }
+
+    const dbUsers = await prisma.user.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      include: {
+        shops: {
+          select: { id: true, name: true },
+          take: 1,
+        },
+      },
+    });
+
+    const formattedUsers = dbUsers.map((u) => {
+      // Map PROVIDER thành SELLER cho giao diện
+      let displayRole: "ADMIN" | "SELLER" | "CUSTOMER" = "CUSTOMER";
+      if (u.role === "ADMIN") displayRole = "ADMIN";
+      else if (u.role === "PROVIDER" || u.shops.length > 0) displayRole = "SELLER";
+
+      return {
+        id: u.id,
+        fullName: u.fullName || (u.phone ? `Người dùng ${u.phone.slice(-4)}` : "Chưa đặt tên"),
+        phone: u.phone || "---",
+        email: u.email,
+        role: displayRole,
+        status: u.isActive ? ("ACTIVE" as const) : ("BLOCKED" as const),
+        sellerName: u.shops[0]?.name,
+        joinedDate: u.createdAt.toISOString().split("T")[0],
+      };
+    });
+
+    return NextResponse.json({ success: true, users: formattedUsers });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Lỗi server";
+    return NextResponse.json({ success: false, message: msg }, { status: 500 });
+  }
 }
 
 export async function PATCH(req: NextRequest) {
@@ -31,21 +75,45 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json();
     const { userId, status, role } = body;
 
-    const userIndex = usersStore.findIndex((u) => u.id === userId);
-    if (userIndex === -1) {
-      return NextResponse.json(
-        { success: false, message: "Không tìm thấy người dùng" },
-        { status: 404 }
-      );
+    const data: Record<string, unknown> = {};
+    if (status) {
+      data.isActive = status === "ACTIVE";
+    }
+    if (role) {
+      if (role === "SELLER") data.role = Role.PROVIDER;
+      else if (Object.values(Role).includes(role as Role)) {
+        data.role = role as Role;
+      }
     }
 
-    if (status) usersStore[userIndex].status = status;
-    if (role) usersStore[userIndex].role = role;
+    const updatedUser = await prisma.user.update({
+      where: { id: Number(userId) },
+      data,
+      include: {
+        shops: {
+          select: { name: true },
+          take: 1,
+        },
+      },
+    });
+
+    let displayRole: "ADMIN" | "SELLER" | "CUSTOMER" = "CUSTOMER";
+    if (updatedUser.role === "ADMIN") displayRole = "ADMIN";
+    else if (updatedUser.role === "PROVIDER" || updatedUser.shops.length > 0) displayRole = "SELLER";
 
     return NextResponse.json({
       success: true,
-      message: "Cập nhật tài khoản thành công!",
-      user: usersStore[userIndex],
+      message: "Cập nhật tài khoản trong cơ sở dữ liệu thành công!",
+      user: {
+        id: updatedUser.id,
+        fullName: updatedUser.fullName || "---",
+        phone: updatedUser.phone || "---",
+        email: updatedUser.email,
+        role: displayRole,
+        status: updatedUser.isActive ? "ACTIVE" : "BLOCKED",
+        sellerName: updatedUser.shops[0]?.name,
+        joinedDate: updatedUser.createdAt.toISOString().split("T")[0],
+      },
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Lỗi server";
