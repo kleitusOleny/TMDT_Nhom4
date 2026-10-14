@@ -397,131 +397,10 @@ function ServiceListContent() {
           </div>
         </div>
 
-        {/* LAYOUT 2 CỘT: CỘT TRÁI (DANH SÁCH DỊCH VỤ) - CỘT PHẢI (BỘ LỌC FILTER) */}
+        {/* LAYOUT 2 CỘT: BỘ LỌC BÊN TRÁI (LEFT SIDEBAR) - DANH SÁCH DỊCH VỤ BÊN PHẢI */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* CỘT TRÁI (8 CỘT): DANH SÁCH DỊCH VỤ */}
-          <div className="lg:col-span-8 order-2 lg:order-1">
-            {isLoading ? (
-              <div className="min-h-[400px] flex flex-col items-center justify-center bg-white rounded-2xl border border-slate-200/80 p-12">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-3" />
-                <p className="text-sm font-medium text-slate-600">Đang tải danh sách dịch vụ...</p>
-              </div>
-            ) : error ? (
-              <div className="min-h-[400px] flex flex-col items-center justify-center bg-white rounded-2xl border border-slate-200/80 p-12 text-center">
-                <AlertCircle className="w-10 h-10 text-rose-500 mb-3" />
-                <h3 className="text-base font-bold text-slate-800 mb-1">Không thể tải dữ liệu</h3>
-                <p className="text-sm text-slate-500 mb-4">{error}</p>
-                <button
-                  onClick={handleResetFilter}
-                  className="px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700 transition"
-                >
-                  Thử lại
-                </button>
-              </div>
-            ) : services.length === 0 ? (
-              <div className="min-h-[400px] flex flex-col items-center justify-center bg-white rounded-2xl border border-slate-200/80 p-12 text-center">
-                <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-4">
-                  <Search className="w-8 h-8" />
-                </div>
-                <h3 className="text-base font-bold text-slate-800 mb-1">Không tìm thấy dịch vụ phù hợp</h3>
-                <p className="text-sm text-slate-500 max-w-sm mb-6">
-                  Hãy thử điều chỉnh lại bộ lọc giá, từ khóa tìm kiếm hoặc chọn danh mục khác.
-                </p>
-                <button
-                  onClick={handleResetFilter}
-                  className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 transition cursor-pointer"
-                >
-                  Xóa toàn bộ bộ lọc
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                {services.map((item) => {
-                  const firstImage = Array.isArray(item.images)
-                    ? item.images[0]
-                    : typeof item.images === "string"
-                    ? item.images
-                    : "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=600&q=80";
-
-                  return (
-                    <Link
-                      key={item.id}
-                      href={`/dichvu/${item.id}`}
-                      className="group bg-white rounded-2xl border border-slate-200/80 overflow-hidden hover:border-blue-300 hover:shadow-xl hover:shadow-blue-500/5 transition-all duration-300 flex flex-col"
-                    >
-                      {/* Ảnh đại diện dịch vụ */}
-                      <div className="relative aspect-[16/10] overflow-hidden bg-slate-100">
-                        <Image
-                          src={firstImage}
-                          alt={item.title}
-                          fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                        <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-md px-2.5 py-1 rounded-lg text-[11px] font-bold text-blue-700 shadow-xs flex items-center gap-1">
-                          <Building2 className="w-3 h-3 text-blue-600" />
-                          <span className="truncate max-w-[150px]">{item.shop?.name}</span>
-                        </div>
-                        {item.shop?.approvalStatus === "APPROVED" && (
-                          <div className="absolute top-3 right-3 bg-emerald-500 text-white p-1 rounded-full shadow-xs" title="Đối tác đã xác thực">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Thông tin dịch vụ */}
-                      <div className="p-4 flex-1 flex flex-col justify-between">
-                        <div>
-                          {/* Rating & Khu vực */}
-                          <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
-                            <div className="flex items-center gap-1 text-amber-500 font-bold">
-                              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                              <span>{item.rating || 5.0}</span>
-                              <span className="text-slate-400 font-normal">({item.totalReviews})</span>
-                            </div>
-                            {item.duration && (
-                              <div className="flex items-center gap-1 text-slate-500">
-                                <Clock className="w-3 h-3" />
-                                <span>{item.duration}</span>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Tiêu đề */}
-                          <h3 className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-2 mb-1.5">
-                            {item.title}
-                          </h3>
-
-                          {/* Mô tả ngắn */}
-                          <p className="text-xs text-slate-500 line-clamp-2 mb-3">
-                            {item.description}
-                          </p>
-                        </div>
-
-                        {/* Giá khởi điểm & Khu vực */}
-                        <div className="pt-3 border-t border-slate-100 flex items-center justify-between mt-auto">
-                          <div>
-                            <span className="text-[10px] text-slate-400 uppercase font-semibold block">Khởi điểm từ</span>
-                            <span className="text-base font-extrabold text-blue-600">
-                              {formatCurrency(item.priceStart)}
-                            </span>
-                          </div>
-                          {item.serviceArea && (
-                            <div className="flex items-center gap-1 text-[11px] text-slate-500 max-w-[140px] truncate">
-                              <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                              <span className="truncate">{item.serviceArea}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* CỘT PHẢI (4 CỘT): BỘ LỌC FILTER BÊN PHẢI (DESKTOP) */}
-          <div className="hidden lg:block lg:col-span-4 order-1 lg:order-2">
+          {/* CỘT TRÁI (4 CỘT): BỘ LỌC FILTER BÊN TRÁI (DESKTOP) */}
+          <aside className="hidden lg:block lg:col-span-4 xl:col-span-3">
             <FilterSidebar
               categories={categories}
               selectedCategory={selectedCategory}
@@ -546,6 +425,127 @@ function ServiceListContent() {
               }}
               onReset={handleResetFilter}
             />
+          </aside>
+
+          {/* CỘT PHẢI (8 CỘT HOẶC 9 CỘT): DANH SÁCH DỊCH VỤ */}
+          <div className="lg:col-span-8 xl:col-span-9">
+            {isLoading ? (
+              <div className="min-h-[400px] flex flex-col items-center justify-center bg-white rounded-3xl border border-slate-200/80 p-12">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-3" />
+                <p className="text-sm font-medium text-slate-600">Đang tải danh sách dịch vụ...</p>
+              </div>
+            ) : error ? (
+              <div className="min-h-[400px] flex flex-col items-center justify-center bg-white rounded-3xl border border-slate-200/80 p-12 text-center">
+                <AlertCircle className="w-10 h-10 text-rose-500 mb-3" />
+                <h3 className="text-base font-bold text-slate-800 mb-1">Không thể tải dữ liệu</h3>
+                <p className="text-sm text-slate-500 mb-4">{error}</p>
+                <button
+                  onClick={handleResetFilter}
+                  className="px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700 transition cursor-pointer"
+                >
+                  Thử lại
+                </button>
+              </div>
+            ) : services.length === 0 ? (
+              <div className="min-h-[400px] flex flex-col items-center justify-center bg-white rounded-3xl border border-slate-200/80 p-12 text-center">
+                <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-4">
+                  <Search className="w-8 h-8" />
+                </div>
+                <h3 className="text-base font-bold text-slate-800 mb-1">Không tìm thấy dịch vụ phù hợp</h3>
+                <p className="text-sm text-slate-500 max-w-sm mb-6">
+                  Hãy thử điều chỉnh lại bộ lọc giá, từ khóa tìm kiếm hoặc chọn danh mục khác.
+                </p>
+                <button
+                  onClick={handleResetFilter}
+                  className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 transition cursor-pointer"
+                >
+                  Xóa toàn bộ bộ lọc
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                {services.map((item) => {
+                  const firstImage = Array.isArray(item.images)
+                    ? item.images[0]
+                    : typeof item.images === "string"
+                    ? item.images
+                    : "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=600&q=80";
+
+                  return (
+                    <Link
+                      key={item.id}
+                      href={`/dichvu/${item.id}`}
+                      className="group bg-white rounded-2xl border border-slate-200/80 overflow-hidden hover:border-blue-300 hover:shadow-xl hover:shadow-blue-500/5 transition-all duration-300 flex flex-col"
+                    >
+                      {/* Ảnh đại diện dịch vụ */}
+                      <div className="relative aspect-[16/10] overflow-hidden bg-slate-100">
+                        <Image
+                          src={firstImage}
+                          alt={item.title}
+                          fill
+                          className="object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                        <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-md px-2.5 py-1 rounded-lg text-[11px] font-bold text-blue-700 shadow-xs flex items-center gap-1">
+                          <Building2 className="w-3 h-3 text-blue-600" />
+                          <span className="truncate max-w-[130px]">{item.shop?.name}</span>
+                        </div>
+                        {item.shop?.approvalStatus === "APPROVED" && (
+                          <div className="absolute top-3 right-3 bg-emerald-500 text-white p-1 rounded-full shadow-xs" title="Đối tác đã xác thực">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Thông tin dịch vụ */}
+                      <div className="p-4 flex-1 flex flex-col justify-between">
+                        <div>
+                          {/* Rating & Thời lượng */}
+                          <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
+                            <div className="flex items-center gap-1 text-amber-500 font-bold">
+                              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                              <span>{item.rating || 5.0}</span>
+                              <span className="text-slate-400 font-normal">({item.totalReviews})</span>
+                            </div>
+                            {item.duration && (
+                              <div className="flex items-center gap-1 text-slate-500">
+                                <Clock className="w-3 h-3" />
+                                <span>{item.duration}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Tiêu đề */}
+                          <h3 className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-2 mb-1.5 leading-snug">
+                            {item.title}
+                          </h3>
+
+                          {/* Mô tả ngắn */}
+                          <p className="text-xs text-slate-500 line-clamp-2 mb-3">
+                            {item.description}
+                          </p>
+                        </div>
+
+                        {/* Giá khởi điểm & Khu vực */}
+                        <div className="pt-3 border-t border-slate-100 flex items-center justify-between mt-auto">
+                          <div>
+                            <span className="text-[10px] text-slate-400 uppercase font-semibold block">Khởi điểm</span>
+                            <span className="text-base font-extrabold text-blue-600">
+                              {formatCurrency(item.priceStart)}
+                            </span>
+                          </div>
+                          {item.serviceArea && (
+                            <div className="flex items-center gap-1 text-[11px] text-slate-500 max-w-[120px] truncate">
+                              <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span className="truncate">{item.serviceArea}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
