@@ -8,6 +8,7 @@ export async function GET(req: NextRequest) {
     const statusParam = searchParams.get("status");
     const sellerId = searchParams.get("sellerId");
     const category = searchParams.get("category");
+    const query = searchParams.get("q")?.toLowerCase();
 
     const where: Record<string, unknown> = {};
 
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest) {
       if (statusParam === "INACTIVE" || statusParam === "REJECTED") where.isActive = false;
     }
 
-    if (sellerId) {
+    if (sellerId && sellerId !== "ALL") {
       const parsedSellerId = parseInt(sellerId, 10);
       if (!isNaN(parsedSellerId)) {
         where.shopId = parsedSellerId;
@@ -29,6 +30,14 @@ export async function GET(req: NextRequest) {
           slug: category,
         },
       };
+    }
+
+    if (query) {
+      where.OR = [
+        { title: { contains: query } },
+        { description: { contains: query } },
+        { shop: { name: { contains: query } } },
+      ];
     }
 
     const dbServices = await prisma.dichVu.findMany({
@@ -84,14 +93,24 @@ export async function GET(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
-    const { serviceId, status, price } = body;
+    const { serviceId, status, price, name, unit, category, sellerId } = body;
 
     const data: Record<string, unknown> = {};
-    if (status) {
+    if (status !== undefined) {
       data.isActive = status === "APPROVED";
     }
     if (price !== undefined && !isNaN(Number(price))) {
       data.priceStart = Number(price);
+    }
+    if (name) data.title = name;
+    if (unit) data.duration = unit;
+    if (sellerId) data.shopId = Number(sellerId);
+
+    if (category && category !== "all") {
+      data.categories = {
+        set: [],
+        connect: [{ slug: category }],
+      };
     }
 
     const updated = await prisma.dichVu.update({
@@ -143,9 +162,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Lấy shopId hợp lệ hoặc shop đầu tiên
     let targetShopId = Number(sellerId);
-    if (isNaN(targetShopId)) {
+    if (isNaN(targetShopId) || targetShopId <= 0) {
       const firstShop = await prisma.shop.findFirst();
       targetShopId = firstShop?.id || 1;
     }
@@ -196,6 +214,34 @@ export async function POST(req: NextRequest) {
       success: true,
       message: "Tạo dịch vụ mới thành công vào cơ sở dữ liệu!",
       service: formattedService,
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Lỗi server";
+    return NextResponse.json({ success: false, message: msg }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const serviceId = Number(searchParams.get("id"));
+
+    if (!serviceId) {
+      return NextResponse.json({ success: false, message: "Thiếu ID dịch vụ cần xóa" }, { status: 400 });
+    }
+
+    try {
+      await prisma.dichVu.delete({ where: { id: serviceId } });
+    } catch {
+      await prisma.dichVu.update({
+        where: { id: serviceId },
+        data: { isActive: false },
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Đã xóa/ngừng cung cấp dịch vụ thành công khỏi cơ sở dữ liệu!",
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Lỗi server";

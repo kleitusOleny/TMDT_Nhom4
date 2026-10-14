@@ -3,10 +3,29 @@ export interface UserRecord {
   fullName: string;
   phone: string;
   email: string | null;
-  role: "ADMIN" | "SELLER" | "CUSTOMER";
+  role: "ADMIN" | "SELLER" | "CUSTOMER" | "STAFF";
+  actualRole?: string;
   status: "ACTIVE" | "BLOCKED";
   sellerName?: string;
   joinedDate: string;
+}
+
+export interface ProviderRecord {
+  id: number;
+  name: string;
+  slug: string;
+  description: string | null;
+  address: string;
+  area: string;
+  rating: number;
+  totalReviews: number;
+  approvalStatus: "PENDING" | "APPROVED" | "REJECTED";
+  servicesCount: number;
+  ownerId: number;
+  ownerName: string;
+  ownerPhone: string;
+  ownerEmail: string | null;
+  createdAt: string;
 }
 
 export interface ServiceRecord {
@@ -27,6 +46,7 @@ export interface BookingRecord {
   id: string; // CM-2026-001
   customerName: string;
   customerPhone: string;
+  customerEmail?: string | null;
   serviceId: number;
   serviceName: string;
   category: string;
@@ -36,11 +56,18 @@ export interface BookingRecord {
   bookingDate: string; // YYYY-MM-DD
   bookingTime: string;
   address: string;
+  note?: string | null;
   totalAmount: number;
   commissionFee: number; // Phí sàn
   sellerEarnings: number; // Tiền người bán thực nhận
-  paymentMethod: "CASH" | "VNPAY" | "MOMO" | "QR_BANKING";
+  paymentMethod: "CASH" | "VNPAY" | "MOMO" | "QR_BANKING" | "CREDIT_CARD" | "BANK_TRANSFER";
+  paymentStatus?: string;
+  tipAmount?: number;
+  transactionId?: string | null;
   status: "PENDING" | "CONFIRMED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+  beforeImages?: string[];
+  afterImages?: string[];
+  cancellationReason?: string | null;
   createdAt: string;
 }
 
