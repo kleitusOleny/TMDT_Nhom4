@@ -113,7 +113,7 @@ export default function Header({ currentPath = "/", showSearchOrBooking = true }
             Trang chủ
           </Link>
           <Link
-            href="/dichvu/1"
+            href="/dichvu"
             className={
               currentPath.startsWith("/dichvu")
                 ? "text-blue-600 font-semibold hover:text-blue-700 transition"

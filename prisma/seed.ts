@@ -1,9 +1,28 @@
 import { prisma } from "../src/lib/prisma";
 
 async function main() {
-  console.log("🚀 Bắt đầu đổ dữ liệu mẫu vào cơ sở dữ liệu...");
+  console.log("🚀 Bắt đầu đổ dữ liệu danh mục và dịch vụ mẫu vào cơ sở dữ liệu...");
 
-  // 1. Tạo User chủ cửa hàng (Shop owner)
+  // 1. Tạo Category mẫu
+  const categories = [
+    { name: "Vệ sinh nhà ở", slug: "ve-sinh-nha-o", description: "Dọn dẹp phòng khách, bếp, phòng ngủ, nhà vệ sinh toàn diện." },
+    { name: "Vệ sinh văn phòng", slug: "ve-sinh-van-phong", description: "Dọn dẹp sàn, bàn ghế, thiết bị văn phòng chuyên nghiệp." },
+    { name: "Vệ sinh công nghiệp", slug: "ve-sinh-cong-nghiep", description: "Vệ sinh sau xây dựng, nhà xưởng, mặt ngoài tòa nhà." },
+    { name: "Giặt sofa & nệm", slug: "giat-sofa-nem", description: "Công nghệ phun hút diệt khuẩn 99.9%, khử mùi hôi nấm mốc." },
+    { name: "Vệ sinh máy lạnh", slug: "ve-sinh-may-lanh", description: "Tháo rửa xịt dàn lạnh, dàn nóng, bảo dưỡng nạp gas." },
+  ];
+
+  const catMap: Record<string, number> = {};
+  for (const cat of categories) {
+    const createdCat = await prisma.category.upsert({
+      where: { slug: cat.slug },
+      update: { name: cat.name, description: cat.description },
+      create: { name: cat.name, slug: cat.slug, description: cat.description },
+    });
+    catMap[cat.slug] = createdCat.id;
+  }
+
+  // 2. Tạo User chủ cửa hàng (Shop owner)
   const owner = await prisma.user.upsert({
     where: { phone: "0909123456" },
     update: {},
@@ -16,10 +35,10 @@ async function main() {
     },
   });
 
-  // 2. Tạo Shop
+  // 3. Tạo Shop Sạch Bóng
   const shop = await prisma.shop.upsert({
     where: { slug: "cong-ty-tnhh-ve-sinh-sach-bong" },
-    update: {},
+    update: { approvalStatus: "APPROVED" },
     create: {
       name: "Công ty TNHH Vệ sinh Sạch Bóng",
       slug: "cong-ty-tnhh-ve-sinh-sach-bong",
@@ -31,119 +50,148 @@ async function main() {
     },
   });
 
-  // 3. Tạo Dịch vụ "Vệ sinh nhà ở toàn diện"
-  const dichVu = await prisma.dichVu.upsert({
-    where: { slug: "ve-sinh-nha-o-toan-dien" },
-    update: {
-      title: "Dịch vụ vệ sinh nhà ở toàn diện",
-      description:
-        "Dịch vụ vệ sinh nhà ở toàn diện của Sạch Bóng cung cấp giải pháp làm sạch sâu mọi ngóc ngách căn nhà của bạn. Chúng tôi sử dụng các máy móc hiện đại và hóa chất làm sạch thân thiện với môi trường, không độc hại cho trẻ nhỏ và vật nuôi. Đội ngũ nhân viên tận tâm, lý lịch rõ ràng đảm bảo sự hài lòng tuyệt đối cho bạn.",
-      details: [
-        "Lau dọn phòng khách: Hút bụi sofa, lau kệ TV, bàn trà, quét màng nhện trần nhà.",
-        "Vệ sinh phòng ngủ: Thay ga trải giường (nếu có yêu cầu), quét bụi gầm giường, lau tủ quần áo.",
-        "Làm sạch nhà bếp: Khử dầu mỡ bếp gas/bếp từ, lau chùi bồn rửa, lau bên ngoài tủ lạnh, lò vi sóng.",
-        "Chà rửa nhà tắm: Tẩy sạch cặn bám gương, kính buồng tắm, khử trùng bồn cầu, chà sàn gạch toilet.",
-        "Hút bụi và lau sàn toàn bộ căn nhà bằng dung dịch hương thơm tự nhiên dễ chịu.",
-      ],
-      priceStart: 250000,
-      pricingTable: [
-        {
-          id: "fixed",
-          title: "Giá cố định",
-          sub: "Dưới 50m²",
-          price: 250000,
-          unit: "/lần",
-        },
-        {
-          id: "sqm",
-          title: "Giá theo m²",
-          sub: "Từ 50m² trở lên",
-          price: 15000,
-          unit: "/m²",
-        },
-        {
-          id: "hourly",
-          title: "Giá theo giờ",
-          sub: "Tối thiểu 3 tiếng",
-          price: 120000,
-          unit: "/giờ",
-        },
-        {
-          id: "monthly",
-          title: "Gói trọn gói",
-          sub: "Tháng (4 lần dọn)",
-          price: 1500000,
-          unit: "/tháng",
-        },
-      ],
-      images: [
-        "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1200&q=80",
-        "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=1200&q=80",
-        "https://images.unsplash.com/photo-1584820927498-cfe5211fd8bf?auto=format&fit=crop&w=1200&q=80",
-      ],
-      rating: 4.8,
-      totalReviews: 256,
-      duration: "2-4 giờ",
-      serviceArea: "Quận 1, 2, 3, 7, Thủ Đức",
-      shopId: shop.id,
-    },
-    create: {
+  // 4. Danh sách các dịch vụ đa dạng
+  const sampleServices = [
+    {
       title: "Dịch vụ vệ sinh nhà ở toàn diện",
       slug: "ve-sinh-nha-o-toan-dien",
-      description:
-        "Dịch vụ vệ sinh nhà ở toàn diện của Sạch Bóng cung cấp giải pháp làm sạch sâu mọi ngóc ngách căn nhà của bạn. Chúng tôi sử dụng các máy móc hiện đại và hóa chất làm sạch thân thiện với môi trường, không độc hại cho trẻ nhỏ và vật nuôi. Đội ngũ nhân viên tận tâm, lý lịch rõ ràng đảm bảo sự hài lòng tuyệt đối cho bạn.",
-      details: [
-        "Lau dọn phòng khách: Hút bụi sofa, lau kệ TV, bàn trà, quét màng nhện trần nhà.",
-        "Vệ sinh phòng ngủ: Thay ga trải giường (nếu có yêu cầu), quét bụi gầm giường, lau tủ quần áo.",
-        "Làm sạch nhà bếp: Khử dầu mỡ bếp gas/bếp từ, lau chùi bồn rửa, lau bên ngoài tủ lạnh, lò vi sóng.",
-        "Chà rửa nhà tắm: Tẩy sạch cặn bám gương, kính buồng tắm, khử trùng bồn cầu, chà sàn gạch toilet.",
-        "Hút bụi và lau sàn toàn bộ căn nhà bằng dung dịch hương thơm tự nhiên dễ chịu.",
-      ],
+      description: "Dịch vụ vệ sinh nhà ở toàn diện của Sạch Bóng cung cấp giải pháp làm sạch sâu mọi ngóc ngách căn nhà của bạn. Máy móc hiện đại và hóa chất thân thiện môi trường.",
       priceStart: 250000,
-      pricingTable: [
-        {
-          id: "fixed",
-          title: "Giá cố định",
-          sub: "Dưới 50m²",
-          price: 250000,
-          unit: "/lần",
-        },
-        {
-          id: "sqm",
-          title: "Giá theo m²",
-          sub: "Từ 50m² trở lên",
-          price: 15000,
-          unit: "/m²",
-        },
-        {
-          id: "hourly",
-          title: "Giá theo giờ",
-          sub: "Tối thiểu 3 tiếng",
-          price: 120000,
-          unit: "/giờ",
-        },
-        {
-          id: "monthly",
-          title: "Gói trọn gói",
-          sub: "Tháng (4 lần dọn)",
-          price: 1500000,
-          unit: "/tháng",
-        },
-      ],
-      images: [
-        "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1200&q=80",
-        "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=1200&q=80",
-        "https://images.unsplash.com/photo-1584820927498-cfe5211fd8bf?auto=format&fit=crop&w=1200&q=80",
-      ],
       rating: 4.8,
       totalReviews: 256,
       duration: "2-4 giờ",
       serviceArea: "Quận 1, 2, 3, 7, Thủ Đức",
-      shopId: shop.id,
+      categorySlug: "ve-sinh-nha-o",
+      images: [
+        "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=1200&q=80",
+      ],
+      pricingTable: [
+        { id: "fixed", title: "Giá cố định", sub: "Dưới 50m²", price: 250000, unit: "/lần" },
+        { id: "sqm", title: "Giá theo m²", sub: "Từ 50m² trở lên", price: 15000, unit: "/m²" },
+      ],
     },
-  });
+    {
+      title: "Vệ sinh văn phòng theo giờ & định kỳ",
+      slug: "ve-sinh-van-phong-dinh-ky",
+      description: "Duy trì môi trường làm việc sạch đẹp, thơm mát và ngăn nắp cho doanh nghiệp. Nhân viên tận tình, bảo mật tài liệu tốt.",
+      priceStart: 120000,
+      rating: 4.9,
+      totalReviews: 184,
+      duration: "Theo ca / giờ",
+      serviceArea: "Toàn TP. Hồ Chí Minh",
+      categorySlug: "ve-sinh-van-phong",
+      images: [
+        "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80",
+      ],
+      pricingTable: [
+        { id: "hourly", title: "Theo giờ", sub: "Tối thiểu 2 giờ", price: 120000, unit: "/giờ" },
+      ],
+    },
+    {
+      title: "Tổng vệ sinh sau xây dựng chuyên sâu",
+      slug: "tong-ve-sinh-sau-xay-dung",
+      description: "Đánh bóng sàn, tẩy sạch vết xi măng, sơn dính và bụi bẩn thô tinh công trình mới hoàn thiện trước khi bàn giao nhà.",
+      priceStart: 1500000,
+      rating: 4.7,
+      totalReviews: 92,
+      duration: "1-2 ngày",
+      serviceArea: "TP. Hồ Chí Minh & Bình Dương",
+      categorySlug: "ve-sinh-cong-nghiep",
+      images: [
+        "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1200&q=80",
+      ],
+      pricingTable: [
+        { id: "full", title: "Trọn gói căn hộ", sub: "Dưới 80m²", price: 1500000, unit: "/căn" },
+      ],
+    },
+    {
+      title: "Giặt sấy sofa da, vải nỉ và nệm cao su tại nhà",
+      slug: "giat-sofa-nem-tai-nha",
+      description: "Phun hút nước nóng kết hợp ion khử khuẩn giúp loại bỏ 99.9% mạt bụi, nấm mốc và mùi thú cưng trên sofa và đệm giường.",
+      priceStart: 350000,
+      rating: 4.9,
+      totalReviews: 310,
+      duration: "1.5 - 2 giờ",
+      serviceArea: "Quận 1, 3, 5, 7, Bình Thạnh, Gò Vấp",
+      categorySlug: "giat-sofa-nem",
+      images: [
+        "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1200&q=80",
+      ],
+      pricingTable: [
+        { id: "sofa-v", title: "Sofa Vải / Nỉ góc L", sub: "Gồm hút bụi & sấy", price: 350000, unit: "/bộ" },
+      ],
+    },
+    {
+      title: "Bảo dưỡng & vệ sinh máy lạnh inverter",
+      slug: "ve-sinh-may-lanh-inverter",
+      description: "Vệ sinh xịt rửa lồng quạt, lưới lọc và dàn nóng lạnh, kiểm tra bổ sung gas giúp máy lạnh chạy êm ái và tiết kiệm điện năng.",
+      priceStart: 180000,
+      rating: 4.8,
+      totalReviews: 420,
+      duration: "45-60 phút",
+      serviceArea: "Tất cả các quận nội thành",
+      categorySlug: "ve-sinh-may-lanh",
+      images: [
+        "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=1200&q=80",
+      ],
+      pricingTable: [
+        { id: "treotuong", title: "Máy treo tường 1 - 2.5 HP", sub: "Xịt rửa dàn nóng & lạnh", price: 180000, unit: "/máy" },
+      ],
+    },
+    {
+      title: "Lau kính mặt ngoài và ban công căn hộ cao tầng",
+      slug: "lau-kinh-mat-ngoai-can-ho",
+      description: "Đội ngũ thợ đu dây lành nghề, trang bị bảo hộ an toàn chuẩn quốc tế, làm sạch kính ố vàng và bụi bẩn ngoài trời bóng loáng.",
+      priceStart: 600000,
+      rating: 4.6,
+      totalReviews: 67,
+      duration: "3-5 giờ",
+      serviceArea: "TP. Hồ Chí Minh",
+      categorySlug: "ve-sinh-cong-nghiep",
+      images: [
+        "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=1200&q=80",
+      ],
+      pricingTable: [
+        { id: "glass-pack", title: "Kính căn hộ trọn gói", sub: "Mặt trong & ngoài", price: 600000, unit: "/gói" },
+      ],
+    },
+  ];
 
-  console.log(`✅ Đã tạo/cập nhật thành công dịch vụ: ${dichVu.title} (ID: ${dichVu.id}) thuộc Shop: ${shop.name}`);
+  for (const s of sampleServices) {
+    const catId = catMap[s.categorySlug];
+    await prisma.dichVu.upsert({
+      where: { slug: s.slug },
+      update: {
+        title: s.title,
+        description: s.description,
+        priceStart: s.priceStart,
+        rating: s.rating,
+        totalReviews: s.totalReviews,
+        duration: s.duration,
+        serviceArea: s.serviceArea,
+        images: s.images,
+        pricingTable: s.pricingTable,
+        categories: catId ? { connect: [{ id: catId }] } : undefined,
+      },
+      create: {
+        title: s.title,
+        slug: s.slug,
+        description: s.description,
+        priceStart: s.priceStart,
+        rating: s.rating,
+        totalReviews: s.totalReviews,
+        duration: s.duration,
+        serviceArea: s.serviceArea,
+        images: s.images,
+        pricingTable: s.pricingTable,
+        shopId: shop.id,
+        categories: catId ? { connect: [{ id: catId }] } : undefined,
+      },
+    });
+  }
+
+  console.log(`✅ Đã tạo/cập nhật thành công ${sampleServices.length} dịch vụ đa dạng!`);
 }
 
 main()

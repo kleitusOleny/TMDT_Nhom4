@@ -16,6 +16,11 @@
   URL: /register
   File: src/app/register/page.tsx
 
+- Trang Danh sách Dịch vụ (Service List & Filter):
+  URL: /dichvu
+  File: src/app/dichvu/page.tsx
+  Mô tả: Danh sách tất cả các dịch vụ vệ sinh với bộ lọc filter bên phải (lọc danh mục, khoảng giá, đánh giá sao, tìm kiếm từ khóa, sắp xếp).
+
 - Trang Chi tiết Dịch vụ (Service Dynamic Detail):
   URL: /dichvu/{id} (ví dụ: /dichvu/1)
   File: src/app/dichvu/[id]/page.tsx
