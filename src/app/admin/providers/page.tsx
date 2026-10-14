@@ -149,9 +149,6 @@ export default function AdminProvidersPage() {
               <tr key={shop.id} className="hover:bg-slate-50/80 transition">
                 <td className="px-6 py-4 font-semibold text-slate-900">
                   <div className="flex items-center gap-2">
-                    <span className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-                      🏢
-                    </span>
                     <div>
                       <div>{shop.name}</div>
                       <div className="text-[11px] text-slate-400 font-normal">
