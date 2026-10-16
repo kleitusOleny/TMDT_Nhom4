@@ -66,9 +66,9 @@ export default function LoginPage() {
 
       setSuccessMessage(data?.message || "Đăng nhập thành công! Đang chuyển hướng...");
 
-      // Chuyển hướng: Nếu là Admin thì vào /admin, người dùng thường về trang chủ /
+      // Chuyển hướng: Nếu là ADMIN hoặc PROVIDER thì vào /admin, người dùng thường về trang chủ /
       setTimeout(() => {
-        if (data?.user?.role === "ADMIN") {
+        if (data?.user?.role === "ADMIN" || data?.user?.role === "PROVIDER") {
           router.push("/admin");
         } else {
           router.push("/");
@@ -103,7 +103,7 @@ export default function LoginPage() {
         <div className="w-full max-w-md mx-auto my-10">
           <div className="mb-8">
             <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-              Chào mừng trở lại 👋
+              Chào mừng trở lại
             </h1>
             <p className="text-sm text-slate-500 mt-2">
               Đăng nhập để quản lý lịch dọn dẹp, tra cứu dịch vụ và nhận ưu đãi độc quyền.
@@ -316,7 +316,7 @@ export default function LoginPage() {
 
         <div className="relative z-10 text-xs text-slate-400 flex items-center justify-between">
           <span>Dịch vụ hỗ trợ trực tuyến 24/7</span>
-          <span className="text-slate-500">cleanmate.vn</span>
+          {/*<span className="text-slate-500">cleanmate.vn</span>*/}
         </div>
       </div>
     </div>

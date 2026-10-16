@@ -540,7 +540,7 @@ export default function RegisterPage() {
 
         <div className="relative z-10 text-xs text-slate-400 flex items-center justify-between">
           <span>Hỗ trợ tư vấn 24/7: 1900 6868</span>
-          <span className="text-slate-500">cleanmate.vn</span>
+          {/*<span className="text-slate-500">cleanmate.vn</span>*/}
         </div>
       </div>
     </div>

@@ -179,10 +179,10 @@ export default function ForgotPasswordPage() {
         <div className="w-full max-w-md mx-auto my-10">
           <div className="mb-6">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Quên mật khẩu? 🔒
+              Quên mật khẩu?
             </h1>
             <p className="text-sm text-slate-500 mt-2">
-              Nhập email đã đăng ký để nhận mã OTP 6 số và đặt lại mật khẩu mới an toàn.
+              Nhập email đã đăng ký để nhận mã OTP 6 số và đặt lại mật khẩu mới.
             </p>
           </div>
 
@@ -382,7 +382,7 @@ export default function ForgotPasswordPage() {
 
         <div className="relative z-10 text-xs text-slate-400 flex items-center justify-between">
           <span>Dịch vụ hỗ trợ trực tuyến 24/7</span>
-          <span className="text-slate-500">cleanmate.vn</span>
+          {/*<span className="text-slate-500">cleanmate.vn</span>*/}
         </div>
       </div>
     </div>

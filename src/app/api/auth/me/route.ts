@@ -52,6 +52,14 @@ export async function GET(req: NextRequest) {
         role: true,
         image: true,
         isActive: true,
+        shops: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            approvalStatus: true,
+          },
+        },
       },
     });
 
