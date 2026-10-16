@@ -21,6 +21,7 @@ import {
   Gift,
   KeyRound,
   RotateCcw,
+  Clock,
 } from "lucide-react";
 
 export default function RegisterPage() {
@@ -41,7 +42,8 @@ export default function RegisterPage() {
   const [otp, setOtp] = useState("");
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
-  const [otpCountdown, setOtpCountdown] = useState(0);
+  const [otpCountdown, setOtpCountdown] = useState(0); // 60s đếm ngược gửi lại
+  const [otpExpiresCountdown, setOtpExpiresCountdown] = useState(0); // 300s (5 phút) hết hạn mã OTP
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -49,7 +51,7 @@ export default function RegisterPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  // Countdown timer cho nút gửi lại OTP
+  // Countdown timer cho nút gửi lại OTP (60s)
   useEffect(() => {
     if (otpCountdown <= 0) return;
     const timer = setInterval(() => {
@@ -57,6 +59,30 @@ export default function RegisterPage() {
     }, 1000);
     return () => clearInterval(timer);
   }, [otpCountdown]);
+
+  // Countdown timer cho hiệu lực của mã OTP (5 phút = 300s)
+  useEffect(() => {
+    if (otpExpiresCountdown <= 0) return;
+    const timer = setInterval(() => {
+      setOtpExpiresCountdown((prev) => {
+        if (prev <= 1) {
+          if (currentStep === 2) {
+            setErrorMessage("Mã OTP đã hết hiệu lực sau 5 phút. Vui lòng bấm 'Gửi lại mã OTP'.");
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [otpExpiresCountdown, currentStep]);
+
+  // Định dạng mm:ss
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+  };
 
   // Hàm gửi mã OTP về Gmail
   const sendOtpRequest = async (targetEmail: string, targetName?: string) => {
@@ -80,6 +106,7 @@ export default function RegisterPage() {
 
       setIsOtpSent(true);
       setOtpCountdown(60); // 60 giây đếm ngược
+      setOtpExpiresCountdown(300); // 5 phút đếm ngược
       setSuccessMessage(data?.message || "Mã OTP 6 số đã được gửi tới Gmail của bạn.");
       return true;
     } catch (err: unknown) {
@@ -176,6 +203,11 @@ export default function RegisterPage() {
     const cleanOtp = otp.trim();
     if (!cleanOtp) {
       setErrorMessage("Vui lòng nhập mã OTP 6 số đã được gửi qua email.");
+      return;
+    }
+
+    if (otpExpiresCountdown <= 0) {
+      setErrorMessage("Mã OTP đã hết hiệu lực (quá 5 phút). Vui lòng nhấn 'Gửi lại mã OTP'.");
       return;
     }
 
@@ -462,9 +494,22 @@ export default function RegisterPage() {
 
               {/* Khung nhập OTP */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Mã xác thực OTP (6 chữ số) <span className="text-rose-500">*</span>
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                    Mã xác thực OTP (6 chữ số) <span className="text-rose-500">*</span>
+                  </label>
+                  {otpExpiresCountdown > 0 ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
+                      <Clock className="w-3 h-3 text-blue-600" />
+                      Hiệu lực: {formatTime(otpExpiresCountdown)}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
+                      <AlertCircle className="w-3 h-3 text-rose-600" />
+                      Hết hiệu lực (quá 5 phút)
+                    </span>
+                  )}
+                </div>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                     <KeyRound className="w-4 h-4" />
@@ -512,7 +557,7 @@ export default function RegisterPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={isLoading}
+                  disabled={isLoading || otpExpiresCountdown <= 0 || otp.trim().length !== 6}
                   className="flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-xl shadow-md shadow-blue-600/30 transition flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {isLoading ? (
