@@ -1,6 +1,6 @@
 import React from "react";
 import { UserRecord, ProviderRecord, ServiceRecord, BookingRecord } from "@/src/lib/admin-data";
-import { X, User, Building2, Plus, Trash2 } from "lucide-react";
+import { X, User, Building2, Plus, Trash2, MapPin, Calendar, CreditCard, Star, ShoppingBag, Eye, Phone, Mail, ShieldCheck, CheckCircle2 } from "lucide-react";
 
 // Format VNĐ
 const formatVND = (num: number) => {
@@ -323,6 +323,304 @@ export function UserFormModal({
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+// 2.1. MODAL XEM CHI TIẾT ĐẦY ĐỦ THÔNG TIN NGƯỜI DÙNG (ĐỊA CHỈ, ĐƠN HÀNG, ĐÁNH GIÁ, TỔNG TIỀN)
+export function UserDetailModal({
+  userId,
+  onClose,
+}: {
+  userId: number;
+  onClose: () => void;
+}) {
+  const [loading, setLoading] = React.useState(true);
+  const [userData, setUserData] = React.useState<{
+    id: number;
+    fullName: string;
+    phone: string;
+    email: string;
+    role: string;
+    actualRole: string;
+    image: string | null;
+    status: string;
+    joinedDate: string;
+    createdAt: string;
+    totalSpent: number;
+    totalBookings: number;
+    totalReviews: number;
+    shops?: { id: number; name: string; slug: string; rating: number; totalReviews: number; approvalStatus: string }[];
+    addresses?: {
+      id: number;
+      receiverName: string;
+      phone: string;
+      detailAddress: string;
+      province: string | null;
+      district: string | null;
+      ward: string | null;
+      isDefault: boolean;
+    }[];
+    bookings?: {
+      id: number;
+      bookingCode: string;
+      serviceTitle: string;
+      scheduledDate: string;
+      address: string;
+      totalPrice: number;
+      status: string;
+      paymentStatus: string;
+      paymentMethod: string;
+      paidAmount: number | null;
+      createdAt: string;
+    }[];
+    reviews?: {
+      id: number;
+      serviceTitle: string;
+      rating: number;
+      comment: string | null;
+      createdAt: string;
+    }[];
+  } | null>(null);
+
+  React.useEffect(() => {
+    async function fetchDetail() {
+      try {
+        setLoading(true);
+        const res = await fetch(`/api/admin/users?id=${userId}`);
+        const data = await res.json();
+        if (data.success && data.user) {
+          setUserData(data.user);
+        }
+      } catch (err) {
+        console.error("Lỗi lấy chi tiết người dùng:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchDetail();
+  }, [userId]);
+
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+      <div className="bg-white w-full max-w-4xl rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto space-y-6">
+        {/* Header Modal */}
+        <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center font-extrabold text-xl">
+              {userData?.fullName?.charAt(0) || <User className="w-6 h-6" />}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-bold text-slate-900">{userData?.fullName || "Chi tiết người dùng"}</h3>
+                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
+                  ID: #{userId}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500">
+                {userData?.email || "Chưa có email"} • {userData?.phone || "Chưa có SĐT"} • Tham gia {userData?.joinedDate}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="py-16 text-center text-slate-500">
+            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+            <p className="text-xs font-semibold">Đang tải hồ sơ đầy đủ của người dùng...</p>
+          </div>
+        ) : !userData ? (
+          <div className="py-12 text-center text-rose-500 text-sm">
+            Không tìm thấy dữ liệu người dùng.
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* THỐNG KÊ TỔNG QUAN (4 Ô THẺ) */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div className="p-4 bg-emerald-50/70 border border-emerald-100 rounded-2xl">
+                <div className="flex items-center gap-1.5 text-emerald-700 font-medium mb-1">
+                  <CreditCard className="w-3.5 h-3.5" /> Tổng thanh toán
+                </div>
+                <div className="text-base sm:text-lg font-bold text-emerald-700">
+                  {formatVND(userData.totalSpent)}
+                </div>
+              </div>
+
+              <div className="p-4 bg-blue-50/70 border border-blue-100 rounded-2xl">
+                <div className="flex items-center gap-1.5 text-blue-700 font-medium mb-1">
+                  <ShoppingBag className="w-3.5 h-3.5" /> Tổng đơn đặt
+                </div>
+                <div className="text-base sm:text-lg font-bold text-blue-800">
+                  {userData.totalBookings} đơn hàng
+                </div>
+              </div>
+
+              <div className="p-4 bg-amber-50/70 border border-amber-100 rounded-2xl">
+                <div className="flex items-center gap-1.5 text-amber-700 font-medium mb-1">
+                  <Star className="w-3.5 h-3.5" /> Đánh giá đã gửi
+                </div>
+                <div className="text-base sm:text-lg font-bold text-amber-800">
+                  {userData.totalReviews} lượt
+                </div>
+              </div>
+
+              <div className="p-4 bg-purple-50/70 border border-purple-100 rounded-2xl">
+                <div className="flex items-center gap-1.5 text-purple-700 font-medium mb-1">
+                  <MapPin className="w-3.5 h-3.5" /> Sổ địa chỉ
+                </div>
+                <div className="text-base sm:text-lg font-bold text-purple-800">
+                  {userData.addresses?.length || 0} địa chỉ
+                </div>
+              </div>
+            </div>
+
+            {/* KHỐI 1: DANH SÁCH SỔ ĐỊA CHỈ */}
+            <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-200/80">
+              <div className="flex items-center gap-2 mb-3">
+                <MapPin className="w-4 h-4 text-purple-600" />
+                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  Sổ địa chỉ người dùng ({userData.addresses?.length || 0})
+                </h4>
+              </div>
+
+              {!userData.addresses || userData.addresses.length === 0 ? (
+                <div className="p-3 bg-white rounded-xl text-xs text-slate-400 italic text-center border border-dashed border-slate-200">
+                  Người dùng này chưa lưu địa chỉ nào trong sổ địa chỉ.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {userData.addresses.map((addr) => (
+                    <div
+                      key={addr.id}
+                      className={`p-3 bg-white rounded-xl border text-xs relative ${
+                        addr.isDefault ? "border-purple-300 ring-1 ring-purple-400/20 bg-purple-50/20" : "border-slate-200"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-bold text-slate-800">{addr.receiverName}</span>
+                        {addr.isDefault && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700">
+                            Mặc định
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-slate-500 font-mono text-[11px] mb-1">SĐT: {addr.phone}</div>
+                      <div className="text-slate-700 font-medium leading-relaxed">
+                        {addr.detailAddress}
+                        {[addr.ward, addr.district, addr.province].filter(Boolean).length > 0 &&
+                          `, ${[addr.ward, addr.district, addr.province].filter(Boolean).join(", ")}`}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* KHỐI 2: DANH SÁCH ĐƠN HÀNG ĐÃ ĐẶT */}
+            <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-200/80">
+              <div className="flex items-center gap-2 mb-3">
+                <ShoppingBag className="w-4 h-4 text-blue-600" />
+                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  Lịch sử đơn hàng gần đây ({userData.bookings?.length || 0})
+                </h4>
+              </div>
+
+              {!userData.bookings || userData.bookings.length === 0 ? (
+                <div className="p-3 bg-white rounded-xl text-xs text-slate-400 italic text-center border border-dashed border-slate-200">
+                  Chưa phát sinh đơn đặt dịch vụ nào.
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                  {userData.bookings.map((b) => (
+                    <div
+                      key={b.id}
+                      className="p-3 bg-white rounded-xl border border-slate-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-blue-600">#{b.bookingCode}</span>
+                          <span className="font-bold text-slate-800">{b.serviceTitle}</span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">
+                          Ngày làm: {new Date(b.scheduledDate).toLocaleDateString("vi-VN")} • Địa chỉ: {b.address}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 self-end sm:self-center">
+                        <div className="text-right">
+                          <div className="font-bold text-slate-900">{formatVND(b.totalPrice)}</div>
+                          <div className="text-[10px] text-slate-400 uppercase">{b.paymentMethod}</div>
+                        </div>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            b.status === "COMPLETED"
+                              ? "bg-emerald-50 text-emerald-700"
+                              : b.status === "IN_PROGRESS"
+                              ? "bg-blue-50 text-blue-700"
+                              : b.status === "CANCELLED"
+                              ? "bg-rose-50 text-rose-700"
+                              : "bg-amber-50 text-amber-700"
+                          }`}
+                        >
+                          {b.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* KHỐI 3: DANH SÁCH ĐÁNH GIÁ ĐÃ ĐĂNG */}
+            <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-200/80">
+              <div className="flex items-center gap-2 mb-3">
+                <Star className="w-4 h-4 text-amber-500" />
+                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  Đánh giá dịch vụ đã gửi ({userData.reviews?.length || 0})
+                </h4>
+              </div>
+
+              {!userData.reviews || userData.reviews.length === 0 ? (
+                <div className="p-3 bg-white rounded-xl text-xs text-slate-400 italic text-center border border-dashed border-slate-200">
+                  Người dùng chưa gửi đánh giá nào.
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {userData.reviews.map((r) => (
+                    <div key={r.id} className="p-3 bg-white rounded-xl border border-slate-200 text-xs">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold text-slate-800">{r.serviceTitle}</span>
+                        <div className="flex items-center gap-1 text-amber-500 font-bold">
+                          <span>{r.rating}</span>
+                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                        </div>
+                      </div>
+                      <p className="text-slate-600 italic bg-slate-50 p-2 rounded-lg border border-slate-100">
+                        &quot;{r.comment || "Không có lời bình luận"}&quot;
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="flex justify-end pt-3 border-t border-slate-100">
+          <button
+            onClick={onClose}
+            className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer transition"
+          >
+            Đóng cửa sổ
+          </button>
+        </div>
       </div>
     </div>
   );

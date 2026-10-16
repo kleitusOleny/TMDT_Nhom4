@@ -115,6 +115,26 @@ model User {
   // Chat
   conversations    Conversation[] @relation("UserConversations")
   messages         Message[]
+
+  // Sổ địa chỉ
+  addresses        UserAddress[]
+}
+
+model UserAddress {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  receiverName String   // Tên người nhận (ví dụ: Anh Nam, Chị Lan)
+  phone        String   // Số điện thoại liên hệ nhận dịch vụ
+  detailAddress String  @db.Text // Số nhà, tên đường, ngõ ngách, toà nhà
+  province     String?  // Tỉnh / Thành phố
+  district     String?  // Quận / Huyện
+  ward         String?  // Phường / Xã
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
 }
 
 model Category {

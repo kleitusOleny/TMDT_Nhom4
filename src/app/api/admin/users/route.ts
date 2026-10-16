@@ -5,6 +5,100 @@ import { Role } from "@/src/generated/prisma/client";
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
+    const detailId = searchParams.get("id");
+
+    // Nếu truyền id cụ thể, trả về toàn bộ thông tin chi tiết của người dùng
+    if (detailId) {
+      const user = await prisma.user.findUnique({
+        where: { id: Number(detailId) },
+        include: {
+          shops: {
+            select: { id: true, name: true, slug: true, rating: true, totalReviews: true, approvalStatus: true },
+          },
+          addresses: {
+            orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
+          },
+          bookings: {
+            orderBy: { createdAt: "desc" },
+            include: {
+              service: {
+                select: { id: true, title: true, images: true },
+              },
+              payment: true,
+              review: true,
+            },
+          },
+          reviews: {
+            orderBy: { createdAt: "desc" },
+            include: {
+              service: {
+                select: { id: true, title: true },
+              },
+            },
+          },
+        },
+      });
+
+      if (!user) {
+        return NextResponse.json({ success: false, message: "Không tìm thấy người dùng" }, { status: 404 });
+      }
+
+      // Tính tổng số tiền đã thanh toán (các đơn có payment status COMPLETED hoặc booking status COMPLETED)
+      let totalSpent = 0;
+      for (const booking of user.bookings) {
+        if (booking.payment?.status === "COMPLETED" || booking.status === "COMPLETED") {
+          totalSpent += Number(booking.payment?.amount || booking.totalPrice || 0);
+        }
+      }
+
+      let displayRole: "ADMIN" | "SELLER" | "CUSTOMER" | "STAFF" = "CUSTOMER";
+      if (user.role === "ADMIN") displayRole = "ADMIN";
+      else if (user.role === "STAFF") displayRole = "STAFF";
+      else if (user.role === "PROVIDER" || user.shops.length > 0) displayRole = "SELLER";
+
+      return NextResponse.json({
+        success: true,
+        user: {
+          id: user.id,
+          fullName: user.fullName || "Chưa đặt tên",
+          phone: user.phone || "---",
+          email: user.email || "---",
+          role: displayRole,
+          actualRole: user.role,
+          image: user.image,
+          dateOfBirth: user.dateOfBirth ? user.dateOfBirth.toISOString().split("T")[0] : null,
+          status: user.isActive ? "ACTIVE" : "BLOCKED",
+          joinedDate: user.createdAt.toISOString().split("T")[0],
+          createdAt: user.createdAt.toISOString(),
+          shops: user.shops,
+          addresses: user.addresses,
+          bookings: user.bookings.map((b) => ({
+            id: b.id,
+            bookingCode: b.bookingCode,
+            serviceTitle: b.service.title,
+            scheduledDate: b.scheduledDate.toISOString(),
+            address: b.address,
+            totalPrice: Number(b.totalPrice),
+            status: b.status,
+            paymentStatus: b.payment?.status || "PENDING",
+            paymentMethod: b.payment?.method || "CASH",
+            paidAmount: b.payment?.amount ? Number(b.payment.amount) : null,
+            createdAt: b.createdAt.toISOString(),
+          })),
+          reviews: user.reviews.map((r) => ({
+            id: r.id,
+            serviceTitle: r.service.title,
+            rating: r.rating,
+            comment: r.comment,
+            createdAt: r.createdAt.toISOString(),
+          })),
+          totalSpent,
+          totalBookings: user.bookings.length,
+          totalReviews: user.reviews.length,
+        },
+      });
+    }
+
     const roleParam = searchParams.get("role");
     const statusParam = searchParams.get("status");
     const query = searchParams.get("q")?.toLowerCase();

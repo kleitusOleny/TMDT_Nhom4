@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { useAdmin } from "../layout";
 import { UserRecord } from "@/src/lib/admin-data";
-import { UserFormModal } from "@/src/components/admin/AdminModals";
-import { Plus, Search, Edit, Trash2, Ban, Check, ShieldAlert, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { UserFormModal, UserDetailModal } from "@/src/components/admin/AdminModals";
+import { Plus, Search, Edit, Trash2, Ban, Check, ShieldAlert, ArrowUpDown, ArrowUp, ArrowDown, Eye } from "lucide-react";
 
 export default function AdminUsersPage() {
   const { showToast } = useAdmin();
@@ -19,6 +19,9 @@ export default function AdminUsersPage() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
+
+  // Xem chi tiết người dùng
+  const [selectedDetailUserId, setSelectedDetailUserId] = useState<number | null>(null);
 
   const handleSort = (field: string) => {
     if (sortField === field) {
@@ -345,6 +348,13 @@ export default function AdminUsersPage() {
                 <td className="px-6 py-4 text-right">
                   <div className="flex items-center justify-end gap-1.5">
                     <button
+                      onClick={() => setSelectedDetailUserId(user.id)}
+                      title="Xem chi tiết người dùng (Đơn hàng, Địa chỉ, Đánh giá, Tổng thanh toán)"
+                      className="p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition cursor-pointer"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                    </button>
+                    <button
                       onClick={() => {
                         setEditingUser(user);
                         setModalOpen(true);
@@ -390,6 +400,13 @@ export default function AdminUsersPage() {
             setEditingUser(null);
           }}
           onSubmit={handleSaveUser}
+        />
+      )}
+
+      {selectedDetailUserId !== null && (
+        <UserDetailModal
+          userId={selectedDetailUserId}
+          onClose={() => setSelectedDetailUserId(null)}
         />
       )}
     </div>
