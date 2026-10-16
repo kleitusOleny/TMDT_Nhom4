@@ -83,11 +83,17 @@ export async function POST(req: NextRequest) {
       fullName,
     });
 
+    const isSmtpConfigured = Boolean(
+      (process.env.EMAIL_USER || process.env.GMAIL_USER) &&
+      (process.env.EMAIL_PASS || process.env.GMAIL_APP_PASSWORD)
+    );
+
     return NextResponse.json({
       success: true,
-      message: sent
-        ? `Mã xác nhận 6 số đã được gửi đến email ${trimmedEmail}. Vui lòng kiểm tra hộp thư!`
-        : `Mã OTP đã được tạo cho email ${trimmedEmail}. Vui lòng kiểm tra console hoặc hộp thư.`,
+      message: isSmtpConfigured
+        ? `Mã xác nhận 6 số đã được gửi đến email ${trimmedEmail}. Vui lòng kiểm tra hộp thư (bao gồm cả thư rác/spam)!`
+        : `[CHẾ ĐỘ THỬ NGHIỆM] Vì hệ thống chưa cấu hình tài khoản Gmail trong file .env, mã OTP của bạn là: ${otp}`,
+      otp: !isSmtpConfigured ? otp : undefined,
       expiresInMinutes: 5,
     });
   } catch (error: unknown) {

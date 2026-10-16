@@ -490,7 +490,7 @@ function ServiceListContent() {
                 }}
                 className="bg-transparent text-xs font-semibold text-slate-800 outline-none cursor-pointer max-w-[150px] sm:max-w-[180px] truncate"
               >
-                <option value="all">🏢 Tất cả nhà cung cấp</option>
+                <option value="all">Tất cả nhà cung cấp</option>
                 {shops.map((s) => (
                   <option key={s.id} value={s.slug}>
                     {s.name}

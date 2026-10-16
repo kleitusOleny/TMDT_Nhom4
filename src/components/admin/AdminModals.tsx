@@ -1,6 +1,6 @@
 import React from "react";
 import { UserRecord, ProviderRecord, ServiceRecord, BookingRecord } from "@/src/lib/admin-data";
-import { X, User, Building2 } from "lucide-react";
+import { X, User, Building2, Plus, Trash2 } from "lucide-react";
 
 // Format VNĐ
 const formatVND = (num: number) => {
@@ -477,13 +477,22 @@ export function ServiceEditModal({
   shopsList: { id: number; name: string }[];
   onClose: () => void;
   onSubmit: (data: {
-    serviceId: number;
+    serviceId?: number;
     name: string;
     category: string;
     sellerId: number;
     price: number;
     unit: string;
     status: string;
+    description?: string;
+    images?: string[];
+    pricingTable?: {
+      id: string;
+      title: string;
+      sub: string;
+      price: number;
+      unit: string;
+    }[];
   }) => void;
 }) {
   const [name, setName] = React.useState(service.name);
@@ -492,92 +501,153 @@ export function ServiceEditModal({
   const [price, setPrice] = React.useState(service.price.toString());
   const [unit, setUnit] = React.useState(service.unit);
   const [status, setStatus] = React.useState(service.status);
+  const [description, setDescription] = React.useState(service.description || "");
+
+  // Quản lý danh sách hình ảnh
+  const initialImages = Array.isArray(service.images) && service.images.length > 0
+    ? service.images
+    : ["https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=800&q=80"];
+  const [images, setImages] = React.useState<string[]>(initialImages);
+  const [newImageUrl, setNewImageUrl] = React.useState("");
+
+  // Quản lý danh sách các tùy chọn gói bảng giá (options)
+  const initialOptions = Array.isArray(service.pricingTable) && service.pricingTable.length > 0
+    ? service.pricingTable
+    : [
+        { id: "opt-1", title: "Gói cơ bản", sub: "1 người dọn • 2 giờ", price: service.price || 200000, unit: "/gói" },
+        { id: "opt-2", title: "Gói nâng cao", sub: "2 người dọn • 3.5 giờ", price: (service.price || 200000) * 1.8, unit: "/gói" },
+      ];
+  const [options, setOptions] = React.useState(initialOptions);
+
+  const handleAddImage = () => {
+    const trimmed = newImageUrl.trim();
+    if (!trimmed) return;
+    setImages([...images, trimmed]);
+    setNewImageUrl("");
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setImages(images.filter((_, idx) => idx !== index));
+  };
+
+  const handleAddOption = () => {
+    const newId = `opt-${Date.now()}`;
+    setOptions([
+      ...options,
+      {
+        id: newId,
+        title: `Tùy chọn ${options.length + 1}`,
+        sub: "Mô tả chi tiết tùy chọn",
+        price: Number(price) || 200000,
+        unit: "/gói",
+      },
+    ]);
+  };
+
+  const handleUpdateOption = (index: number, field: string, val: string | number) => {
+    const updated = [...options];
+    updated[index] = { ...updated[index], [field]: val };
+    setOptions(updated);
+  };
+
+  const handleRemoveOption = (index: number) => {
+    setOptions(options.filter((_, idx) => idx !== index));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({
-      serviceId: service.id,
+      serviceId: service.id > 0 ? service.id : undefined,
       name,
       category,
       sellerId: Number(sellerId),
       price: Number(price),
       unit,
       status,
+      description,
+      images,
+      pricingTable: options,
     });
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl border border-slate-200 space-y-4">
+    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white w-full max-w-2xl rounded-2xl p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto my-auto">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-          <h3 className="font-bold text-base text-slate-900">Chỉnh Sửa Dịch Vụ #{service.id}</h3>
+          <h3 className="font-bold text-base text-slate-900">
+            {service.id > 0 ? `Chỉnh Sửa Dịch Vụ #${service.id}` : "Thêm Dịch Vụ Mới"}
+          </h3>
           <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
-          <div>
-            <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">
-              Tên dịch vụ <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-blue-600"
-            />
-          </div>
-
-          <div>
-            <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">
-              Nhà cung cấp phụ trách
-            </label>
-            <select
-              value={sellerId}
-              onChange={(e) => setSellerId(Number(e.target.value))}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-blue-600 cursor-pointer"
-            >
-              {shopsList.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} (id: {s.id})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">
-              Nhóm danh mục
-            </label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value as ServiceRecord["category"])}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-blue-600 cursor-pointer"
-            >
-              <option value="home">Vệ sinh nhà ở</option>
-              <option value="office">Vệ sinh văn phòng</option>
-              <option value="industrial">Sau xây dựng</option>
-              <option value="sofa">Giặt sofa & nệm thảm</option>
-              <option value="ac">Vệ sinh máy lạnh</option>
-              <option value="glass">Vệ sinh kính</option>
-            </select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
+        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
               <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                Giá niêm yết (VNĐ) <span className="text-rose-500">*</span>
+                Tên dịch vụ <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Ví dụ: Dọn dẹp nhà ở theo giờ"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-blue-600 font-medium"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                Nhà cung cấp phụ trách
+              </label>
+              <select
+                value={sellerId}
+                onChange={(e) => setSellerId(Number(e.target.value))}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-blue-600 cursor-pointer font-medium"
+              >
+                {shopsList.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} (id: {s.id})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                Nhóm danh mục
+              </label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value as ServiceRecord["category"])}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-blue-600 cursor-pointer font-medium"
+              >
+                <option value="home">Vệ sinh nhà ở</option>
+                <option value="office">Vệ sinh văn phòng</option>
+                <option value="industrial">Sau xây dựng</option>
+                <option value="sofa">Giặt sofa & nệm thảm</option>
+                <option value="ac">Vệ sinh máy lạnh</option>
+                <option value="glass">Vệ sinh kính</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                Giá khởi điểm (VNĐ) <span className="text-rose-500">*</span>
               </label>
               <input
                 type="number"
                 required
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-blue-600 font-mono"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-blue-600 font-mono font-bold"
               />
             </div>
+
             <div>
               <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">
                 Đơn vị tính
@@ -587,8 +657,153 @@ export function ServiceEditModal({
                 required
                 value={unit}
                 onChange={(e) => setUnit(e.target.value)}
+                placeholder="gói, giờ, phòng..."
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-blue-600"
               />
+            </div>
+          </div>
+
+          <div>
+            <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">
+              Mô tả dịch vụ
+            </label>
+            <textarea
+              rows={2}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Mô tả tóm tắt dịch vụ, quy trình phục vụ..."
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-blue-600"
+            />
+          </div>
+
+          {/* QUẢN LÝ HÌNH ẢNH DỊCH VỤ */}
+          <div className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                <span>Danh sách hình ảnh ({images.length})</span>
+              </label>
+              <span className="text-[11px] text-slate-400">URL hình ảnh trực tuyến</span>
+            </div>
+
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={newImageUrl}
+                onChange={(e) => setNewImageUrl(e.target.value)}
+                placeholder="Dán URL hình ảnh (vd: https://images.unsplash.com/...)"
+                className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-slate-800 outline-none focus:border-blue-500"
+              />
+              <button
+                type="button"
+                onClick={handleAddImage}
+                className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition cursor-pointer"
+              >
+                Thêm ảnh
+              </button>
+            </div>
+
+            {images.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+                {images.map((imgUrl, idx) => (
+                  <div key={idx} className="relative group rounded-xl overflow-hidden border border-slate-200 h-20 bg-white">
+                    <img src={imgUrl} alt={`Ảnh ${idx + 1}`} className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImage(idx)}
+                      title="Xóa ảnh"
+                      className="absolute top-1 right-1 bg-rose-600/90 text-white rounded-md p-1 opacity-80 hover:opacity-100 transition cursor-pointer shadow-xs"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                    {idx === 0 && (
+                      <span className="absolute bottom-1 left-1 bg-blue-600/90 text-white text-[9px] px-1.5 py-0.5 rounded font-bold">
+                        Ảnh bìa
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* QUẢN LÝ DANH SÁCH CÁC OPTIONS (BẢNG GIÁ DỊCH VỤ) */}
+          <div className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="font-bold text-slate-800 uppercase tracking-wider block">
+                  Danh sách gói tùy chọn (Options / Bảng giá)
+                </label>
+                <span className="text-[11px] text-slate-500">
+                  Người dùng có thể chọn các gói kích thước/thời lượng này khi đặt dịch vụ
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleAddOption}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold flex items-center gap-1 transition cursor-pointer"
+              >
+                <Plus className="w-3 h-3" />
+                <span>Thêm tùy chọn</span>
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {options.map((opt, idx) => (
+                <div key={opt.id || idx} className="p-3 bg-white rounded-xl border border-slate-200 space-y-2 relative">
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveOption(idx)}
+                    className="absolute top-2.5 right-2.5 text-slate-400 hover:text-rose-600 transition cursor-pointer p-0.5"
+                    title="Xóa tùy chọn này"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 pr-6">
+                    <div className="sm:col-span-5">
+                      <label className="text-[10px] text-slate-400 block mb-0.5 font-medium">Tên gói</label>
+                      <input
+                        type="text"
+                        value={opt.title}
+                        onChange={(e) => handleUpdateOption(idx, "title", e.target.value)}
+                        placeholder="Tên gói (vd: Gói 2 giờ, Căn hộ 2PN)"
+                        className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-semibold outline-none focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-4">
+                      <label className="text-[10px] text-slate-400 block mb-0.5 font-medium">Giá gói (VNĐ)</label>
+                      <input
+                        type="number"
+                        value={opt.price}
+                        onChange={(e) => handleUpdateOption(idx, "price", Number(e.target.value))}
+                        className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold font-mono outline-none focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-3">
+                      <label className="text-[10px] text-slate-400 block mb-0.5 font-medium">Đơn vị</label>
+                      <input
+                        type="text"
+                        value={opt.unit}
+                        onChange={(e) => handleUpdateOption(idx, "unit", e.target.value)}
+                        placeholder="/gói, /giờ"
+                        className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 outline-none focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <input
+                      type="text"
+                      value={opt.sub}
+                      onChange={(e) => handleUpdateOption(idx, "sub", e.target.value)}
+                      placeholder="Mô tả chi tiết (vd: 1 người dọn • 2 giờ • đã bao gồm dụng cụ)"
+                      className="w-full px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 text-[11px] outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -599,7 +814,7 @@ export function ServiceEditModal({
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value as ServiceRecord["status"])}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-blue-600 cursor-pointer"
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-blue-600 cursor-pointer font-medium"
             >
               <option value="APPROVED">Đã duyệt (Active)</option>
               <option value="PENDING">Chờ duyệt (Pending)</option>
@@ -607,7 +822,7 @@ export function ServiceEditModal({
             </select>
           </div>
 
-          <div className="pt-3 flex items-center justify-end gap-2.5">
+          <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
             <button
               type="button"
               onClick={onClose}
@@ -619,7 +834,7 @@ export function ServiceEditModal({
               type="submit"
               className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-xs cursor-pointer"
             >
-              Lưu thay đổi
+              {service.id > 0 ? "Lưu thay đổi" : "Tạo dịch vụ"}
             </button>
           </div>
         </form>

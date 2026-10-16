@@ -40,6 +40,15 @@ export interface ServiceRecord {
   status: "APPROVED" | "PENDING" | "REJECTED" | "INACTIVE";
   rating: number;
   completedBookings: number;
+  description?: string;
+  images?: string[];
+  pricingTable?: {
+    id: string;
+    title: string;
+    sub: string;
+    price: number;
+    unit: string;
+  }[];
 }
 
 export interface BookingRecord {

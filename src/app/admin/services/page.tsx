@@ -117,6 +117,14 @@ function AdminServicesContent() {
     unit: string;
     status: string;
     description?: string;
+    images?: string[];
+    pricingTable?: {
+      id: string;
+      title: string;
+      sub: string;
+      price: number;
+      unit: string;
+    }[];
   }) => {
     try {
       const method = data.serviceId ? "PATCH" : "POST";
