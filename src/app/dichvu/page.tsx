@@ -477,8 +477,28 @@ function ServiceListContent() {
             />
           </div>
 
-          {/* Sắp xếp & Nút mở filter trên Mobile */}
-          <div className="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto">
+          {/* Sắp xếp, Chọn nhà cung cấp & Nút mở filter trên Mobile */}
+          <div className="flex flex-wrap items-center justify-between md:justify-end gap-3 w-full md:w-auto">
+            {/* Lọc nhà cung cấp nhanh trên thanh công cụ */}
+            <div className="flex items-center gap-1.5 bg-white border border-slate-200 py-1.5 px-3 rounded-xl shadow-2xs">
+              <Building2 className="w-4 h-4 text-blue-600 shrink-0" />
+              <select
+                value={selectedShop}
+                onChange={(e) => {
+                  setSelectedShop(e.target.value);
+                  updateQueryUrl({ shop: e.target.value });
+                }}
+                className="bg-transparent text-xs font-semibold text-slate-800 outline-none cursor-pointer max-w-[150px] sm:max-w-[180px] truncate"
+              >
+                <option value="all">🏢 Tất cả nhà cung cấp</option>
+                {shops.map((s) => (
+                  <option key={s.id} value={s.slug}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div className="flex items-center gap-2">
               <ArrowUpDown className="w-4 h-4 text-slate-500" />
               <span className="text-xs text-slate-600 font-medium hidden sm:inline">Sắp xếp:</span>
@@ -507,6 +527,104 @@ function ServiceListContent() {
             </button>
           </div>
         </div>
+
+        {/* CÁC THẺ TAG BỘ LỌC ĐANG CHỌN (ACTIVE FILTER TAGS) */}
+        {(selectedCategory !== "all" || selectedShop !== "all" || minPrice || maxPrice || selectedRating > 0 || search.trim()) && (
+          <div className="flex flex-wrap items-center gap-2 mb-6 p-3 bg-blue-50/60 rounded-2xl border border-blue-100">
+            <span className="text-xs font-bold text-slate-600 flex items-center gap-1 mr-1">
+              <SlidersHorizontal className="w-3.5 h-3.5 text-blue-600" /> Đang lọc:
+            </span>
+
+            {/* Tag Nhà cung cấp */}
+            {selectedShop !== "all" && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-blue-200 rounded-full text-xs font-semibold text-blue-700 shadow-xs">
+                <Building2 className="w-3 h-3 text-blue-600" />
+                <span>Nhà cung cấp: {shops.find((s) => s.slug === selectedShop)?.name || selectedShop}</span>
+                <button
+                  onClick={() => {
+                    setSelectedShop("all");
+                    updateQueryUrl({ shop: "all" });
+                  }}
+                  className="hover:text-rose-600 ml-0.5 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </span>
+            )}
+
+            {/* Tag Danh mục */}
+            {selectedCategory !== "all" && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-blue-200 rounded-full text-xs font-semibold text-blue-700 shadow-xs">
+                <span>Danh mục: {categories.find((c) => c.slug === selectedCategory)?.name || selectedCategory}</span>
+                <button
+                  onClick={() => {
+                    setSelectedCategory("all");
+                    updateQueryUrl({ category: "all" });
+                  }}
+                  className="hover:text-rose-600 ml-0.5 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </span>
+            )}
+
+            {/* Tag Tìm kiếm */}
+            {search.trim() && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-blue-200 rounded-full text-xs font-semibold text-slate-700 shadow-xs">
+                <span>Từ khóa: "{search.trim()}"</span>
+                <button
+                  onClick={() => {
+                    setSearch("");
+                    updateQueryUrl({ search: "" });
+                  }}
+                  className="hover:text-rose-600 ml-0.5 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </span>
+            )}
+
+            {/* Tag Giá */}
+            {(minPrice || maxPrice) && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-blue-200 rounded-full text-xs font-semibold text-slate-700 shadow-xs">
+                <span>Giá: {minPrice ? formatCurrency(minPrice) : "0đ"} - {maxPrice ? formatCurrency(maxPrice) : "Tối đa"}</span>
+                <button
+                  onClick={() => {
+                    setMinPrice("");
+                    setMaxPrice("");
+                    updateQueryUrl({ minPrice: "", maxPrice: "" });
+                  }}
+                  className="hover:text-rose-600 ml-0.5 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </span>
+            )}
+
+            {/* Tag Đánh giá */}
+            {selectedRating > 0 && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-blue-200 rounded-full text-xs font-semibold text-amber-700 shadow-xs">
+                <span>★ từ {selectedRating} sao</span>
+                <button
+                  onClick={() => {
+                    setSelectedRating(0);
+                    updateQueryUrl({ rating: 0 });
+                  }}
+                  className="hover:text-rose-600 ml-0.5 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </span>
+            )}
+
+            <button
+              onClick={handleResetFilter}
+              className="text-xs font-bold text-rose-600 hover:text-rose-700 ml-auto px-2.5 py-1 rounded-lg hover:bg-rose-50 transition cursor-pointer"
+            >
+              Xóa tất cả
+            </button>
+          </div>
+        )}
 
         {/* LAYOUT 2 CỘT: BỘ LỌC BÊN TRÁI (LEFT SIDEBAR) - DANH SÁCH DỊCH VỤ BÊN PHẢI */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">

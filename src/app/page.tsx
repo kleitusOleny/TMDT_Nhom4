@@ -578,7 +578,7 @@ export default function CleanMateHome() {
                     {s._count?.services || 0} gói dịch vụ
                   </span>
                   <Link
-                    href={`/dichvu?search=${encodeURIComponent(s.name)}`}
+                    href={`/dichvu?shop=${s.slug}`}
                     className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1"
                   >
                     Xem dịch vụ <ChevronRight className="w-3.5 h-3.5" />
