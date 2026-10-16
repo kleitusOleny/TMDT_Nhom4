@@ -57,9 +57,23 @@ export async function GET(
       );
     }
 
+    // Tính toán số sao trung bình và số lượng đánh giá thực tế
+    const reviewsList = dichVu.reviews || [];
+    const reviewCount = reviewsList.length;
+    let averageRating = dichVu.rating; // fallback nếu chưa có review nào
+
+    if (reviewCount > 0) {
+      const sumRating = reviewsList.reduce((acc, r) => acc + r.rating, 0);
+      averageRating = Number((sumRating / reviewCount).toFixed(1));
+    }
+
     return NextResponse.json({
       success: true,
-      data: dichVu,
+      data: {
+        ...dichVu,
+        rating: averageRating,
+        totalReviews: reviewCount,
+      },
     });
   } catch (error: unknown) {
     const errMessage = error instanceof Error ? error.message : "Lỗi server";

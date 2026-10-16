@@ -158,7 +158,7 @@ export default function ProfilePage() {
     ADMIN: { label: "Quản trị viên sàn", bg: "bg-indigo-50 border-indigo-200", text: "text-indigo-700" },
     PROVIDER: { label: "Nhà cung cấp / Đối tác", bg: "bg-emerald-50 border-emerald-200", text: "text-emerald-700" },
     STAFF: { label: "Nhân viên dịch vụ", bg: "bg-amber-50 border-amber-200", text: "text-amber-700" },
-    CUSTOMER: { label: "Khách hàng thân thiết", bg: "bg-blue-50 border-blue-200", text: "text-blue-700" },
+    CUSTOMER: { label: "Khách hàng", bg: "bg-blue-50 border-blue-200", text: "text-blue-700" },
   };
 
   const currentRoleInfo = roleBadgeMap[profile?.role || "CUSTOMER"] || roleBadgeMap.CUSTOMER;
@@ -172,7 +172,6 @@ export default function ProfilePage() {
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
                 Thông tin cá nhân
               </h1>
@@ -358,7 +357,7 @@ export default function ProfilePage() {
                         className="w-full pl-10 pr-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-sm text-slate-500 cursor-not-allowed"
                       />
                     </div>
-                    <p className="text-[11px] text-slate-400 mt-1">Email được bảo mật bằng mã OTP xác thực.</p>
+                    {/*<p className="text-[11px] text-slate-400 mt-1">Email được bảo mật bằng mã OTP xác thực.</p>*/}
                   </div>
 
                   {/* Ngày sinh */}
@@ -401,9 +400,6 @@ export default function ProfilePage() {
                   <Lock className="w-4 h-4 text-blue-600" />
                   <h3 className="text-base font-bold text-slate-900">Bảo mật & Đổi mật khẩu</h3>
                 </div>
-                <p className="text-xs text-slate-400 mt-1.5 mb-4">
-                  Để trống nếu bạn không có nhu cầu thay đổi mật khẩu đăng nhập hiện tại.
-                </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Mật khẩu hiện tại */}
@@ -482,7 +478,7 @@ export default function ProfilePage() {
               {/* Nút Submit Lưu thay đổi */}
               <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
                 <span className="text-xs text-slate-400 flex items-center gap-1">
-                  <Sparkles className="w-3.5 h-3.5 text-blue-600" /> Dữ liệu được mã hóa an toàn
+                  {/*<Sparkles className="w-3.5 h-3.5 text-blue-600" /> Dữ liệu được mã hóa an toàn*/}
                 </span>
                 <button
                   type="submit"

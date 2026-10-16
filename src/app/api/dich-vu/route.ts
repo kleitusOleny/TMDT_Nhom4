@@ -81,6 +81,11 @@ export async function GET(req: NextRequest) {
               slug: true,
             },
           },
+          reviews: {
+            select: {
+              rating: true,
+            },
+          },
         },
       }),
       prisma.category.findMany({
@@ -95,12 +100,34 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
+    // Tính toán số sao trung bình và số lượng đánh giá dựa trên count thực tế
+    const formattedServices = services.map((s) => {
+      const reviewList = s.reviews || [];
+      const reviewCount = reviewList.length;
+      let averageRating = s.rating;
+
+      if (reviewCount > 0) {
+        const sum = reviewList.reduce((acc, r) => acc + r.rating, 0);
+        averageRating = Number((sum / reviewCount).toFixed(1));
+      }
+
+      // Loại bỏ mảng reviews lớn khỏi response payload để tối ưu băng thông
+      const { reviews: _reviews, ...serviceData } = s;
+      void _reviews;
+
+      return {
+        ...serviceData,
+        rating: averageRating,
+        totalReviews: reviewCount,
+      };
+    });
+
     return NextResponse.json({
       success: true,
       data: {
-        services,
+        services: formattedServices,
         categories,
-        total: services.length,
+        total: formattedServices.length,
       },
     });
   } catch (error: unknown) {

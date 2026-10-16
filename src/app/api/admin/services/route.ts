@@ -59,7 +59,10 @@ export async function GET(req: NextRequest) {
           },
         },
         _count: {
-          select: { bookings: true },
+          select: { bookings: true, reviews: true },
+        },
+        reviews: {
+          select: { rating: true },
         },
       },
     });
@@ -67,6 +70,14 @@ export async function GET(req: NextRequest) {
     const formattedList: ServiceRecord[] = dbServices.map((s) => {
       const cat = s.categories[0];
       const categoryKey = (cat?.slug || "home") as ServiceRecord["category"];
+
+      const reviewList = s.reviews || [];
+      const reviewCount = reviewList.length;
+      let averageRating = s.rating;
+      if (reviewCount > 0) {
+        const sum = reviewList.reduce((acc, r) => acc + r.rating, 0);
+        averageRating = Number((sum / reviewCount).toFixed(1));
+      }
 
       return {
         id: s.id,
@@ -78,8 +89,8 @@ export async function GET(req: NextRequest) {
         price: Number(s.priceStart),
         unit: s.duration || "gói",
         status: s.isActive ? "APPROVED" : "INACTIVE",
-        rating: s.rating,
-        completedBookings: s._count.bookings || s.totalReviews || 0,
+        rating: averageRating,
+        completedBookings: s._count.bookings || reviewCount || 0,
       };
     });
 
