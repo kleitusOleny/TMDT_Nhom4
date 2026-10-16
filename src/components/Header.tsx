@@ -19,6 +19,7 @@ import {
   X,
   SlidersHorizontal,
   Star,
+  Store,
 } from "lucide-react";
 import { useSession, signOut as nextAuthSignOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -394,6 +395,16 @@ export default function Header({ currentPath = "/", showSearchOrBooking = true }
                   </Link>
                 )}
 
+                {currentUser.role === "PROVIDER" && (
+                  <Link
+                    href="/admin"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition"
+                  >
+                    <Store className="w-3.5 h-3.5" />
+                    <span>Kênh Người Bán</span>
+                  </Link>
+                )}
+
                 <div className="relative">
                   <button
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -416,8 +427,13 @@ export default function Header({ currentPath = "/", showSearchOrBooking = true }
                         <p className="text-xs text-slate-400 font-medium">Đăng nhập với</p>
                         <p className="text-sm font-bold text-slate-900 truncate">{displayName}</p>
                         {currentUser.role === "ADMIN" && (
-                          <span className="inline-block mt-1 px-2 py-0.5 text-[10px] font-semibold bg-blue-50 text-blue-600 rounded">
+                          <span className="inline-block mt-1 px-2 py-0.5 text-[10px] font-semibold bg-indigo-50 text-indigo-600 rounded">
                             Quản trị viên
+                          </span>
+                        )}
+                        {currentUser.role === "PROVIDER" && (
+                          <span className="inline-block mt-1 px-2 py-0.5 text-[10px] font-semibold bg-emerald-50 text-emerald-600 rounded">
+                            Nhà cung cấp
                           </span>
                         )}
                       </div>
@@ -426,10 +442,21 @@ export default function Header({ currentPath = "/", showSearchOrBooking = true }
                         <Link
                           href="/admin"
                           onClick={() => setIsDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition"
+                        >
+                          <Shield className="w-4 h-4 text-indigo-600" />
+                          Trang Quản trị (Admin)
+                        </Link>
+                      )}
+
+                      {currentUser.role === "PROVIDER" && (
+                        <Link
+                          href="/admin"
+                          onClick={() => setIsDropdownOpen(false)}
                           className="flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition"
                         >
-                          <Shield className="w-4 h-4 text-blue-600" />
-                          Trang Quản trị (Admin)
+                          <Store className="w-4 h-4 text-blue-600" />
+                          Kênh Quản trị Người bán
                         </Link>
                       )}
 
