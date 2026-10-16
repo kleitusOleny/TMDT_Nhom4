@@ -82,9 +82,8 @@ export async function sendOtpEmail({ toEmail, otp, type, fullName }: SendOtpOpti
   const senderPass = process.env.EMAIL_PASS || process.env.GMAIL_APP_PASSWORD;
 
   if (!senderEmail || !senderPass) {
-    // Không có config SMTP thật thì vẫn log ra console để test bình thường
-    console.warn("[CleanMate Mailer] GMAIL_USER / EMAIL_USER chưa cấu hình trong .env. Đã in OTP vào console.");
-    return true;
+    console.error("[CleanMate Mailer] GMAIL_USER / EMAIL_USER hoặc Mật khẩu ứng dụng chưa được cấu hình trong .env.");
+    return false;
   }
 
   try {
@@ -97,7 +96,6 @@ export async function sendOtpEmail({ toEmail, otp, type, fullName }: SendOtpOpti
     return true;
   } catch (err) {
     console.error("[CleanMate Mailer] Lỗi gửi email qua SMTP:", err);
-    // Vẫn trả về true nếu trong môi trường test/dev để người dùng test OTP từ console mà không bị crash
     return false;
   }
 }

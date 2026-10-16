@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Gửi email
+    // Gửi email thật
     const sent = await sendOtpEmail({
       toEmail: trimmedEmail,
       otp,
@@ -83,17 +83,19 @@ export async function POST(req: NextRequest) {
       fullName,
     });
 
-    const isSmtpConfigured = Boolean(
-      (process.env.EMAIL_USER || process.env.GMAIL_USER) &&
-      (process.env.EMAIL_PASS || process.env.GMAIL_APP_PASSWORD)
-    );
+    if (!sent) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Không thể gửi email chứa mã OTP. Vui lòng kiểm tra lại địa chỉ email hoặc cấu hình hòm thư máy chủ (SMTP).",
+        },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      message: isSmtpConfigured
-        ? `Mã xác nhận 6 số đã được gửi đến email ${trimmedEmail}. Vui lòng kiểm tra hộp thư (bao gồm cả thư rác/spam)!`
-        : `[CHẾ ĐỘ THỬ NGHIỆM] Vì hệ thống chưa cấu hình tài khoản Gmail trong file .env, mã OTP của bạn là: ${otp}`,
-      otp: !isSmtpConfigured ? otp : undefined,
+      message: `Mã xác nhận 6 số đã được gửi tới email ${trimmedEmail}. Vui lòng kiểm tra hộp thư (bao gồm cả thư rác/spam)!`,
       expiresInMinutes: 5,
     });
   } catch (error: unknown) {

@@ -81,10 +81,6 @@ export default function RegisterPage() {
       setIsOtpSent(true);
       setOtpCountdown(60); // 60 giây đếm ngược
       setSuccessMessage(data?.message || "Mã OTP 6 số đã được gửi tới Gmail của bạn.");
-      // Tự động điền nếu đang ở chế độ dev/test chưa cấu hình SMTP
-      if (data?.otp) {
-        setOtp(data.otp);
-      }
       return true;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Lỗi khi gửi mã xác nhận.";
