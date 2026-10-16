@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -19,6 +19,8 @@ import {
   AlertCircle,
   Loader2,
   Gift,
+  KeyRound,
+  RotateCcw,
 } from "lucide-react";
 
 export default function RegisterPage() {
@@ -32,11 +34,71 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [agreeTerms, setAgreeTerms] = useState(false);
 
+  // Trạng thái OTP
+  const [otp, setOtp] = useState("");
+  const [isOtpSent, setIsOtpSent] = useState(false);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [otpCountdown, setOtpCountdown] = useState(0);
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+
+  // Countdown timer cho nút gửi lại OTP
+  useEffect(() => {
+    if (otpCountdown <= 0) return;
+    const timer = setInterval(() => {
+      setOtpCountdown((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [otpCountdown]);
+
+  // Hàm gửi mã OTP về Gmail
+  const handleSendOtp = async () => {
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      setErrorMessage("Vui lòng nhập Email trước khi lấy mã OTP.");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      setErrorMessage("Email không đúng định dạng (Ví dụ: name@example.com).");
+      return;
+    }
+
+    try {
+      setIsSendingOtp(true);
+      const res = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: cleanEmail,
+          fullName: fullName.trim() || undefined,
+          type: "REGISTER",
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.message || "Không thể gửi mã OTP.");
+      }
+
+      setIsOtpSent(true);
+      setOtpCountdown(60); // 60 giây đếm ngược
+      setSuccessMessage(data?.message || "Mã OTP 6 số đã được gửi tới Gmail của bạn.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Lỗi khi gửi mã xác nhận.";
+      setErrorMessage(msg);
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,21 +112,35 @@ export default function RegisterPage() {
       return;
     }
 
-    // Kiểm tra định dạng số điện thoại Việt Nam cơ bản
     const phoneRegex = /^(0|\+84)[3|5|7|8|9][0-9]{8}$/;
     if (!phoneRegex.test(cleanPhone)) {
       setErrorMessage("Số điện thoại không đúng định dạng (Ví dụ: 0901234567 hoặc +84901234567).");
       return;
     }
 
-    // Kiểm tra Email (nếu người dùng có nhập)
-    const cleanEmail = email.trim();
-    if (cleanEmail) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(cleanEmail)) {
-        setErrorMessage("Email không đúng định dạng (Ví dụ: name@example.com).");
-        return;
-      }
+    // Kiểm tra Email bắt buộc cho OTP
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      setErrorMessage("Vui lòng nhập địa chỉ Email để nhận mã xác thực.");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      setErrorMessage("Email không đúng định dạng (Ví dụ: name@example.com).");
+      return;
+    }
+
+    // Kiểm tra OTP
+    const cleanOtp = otp.trim();
+    if (!cleanOtp) {
+      setErrorMessage("Vui lòng nhập mã OTP 6 số đã được gửi qua email.");
+      return;
+    }
+
+    if (cleanOtp.length !== 6 || !/^\d+$/.test(cleanOtp)) {
+      setErrorMessage("Mã xác thực OTP phải gồm đúng 6 chữ số.");
+      return;
     }
 
     // Kiểm tra Ngày sinh
@@ -103,7 +179,8 @@ export default function RegisterPage() {
         body: JSON.stringify({
           fullName: fullName.trim(),
           phone: cleanPhone,
-          email: cleanEmail || null,
+          email: cleanEmail,
+          otp: cleanOtp,
           dateOfBirth,
           password,
         }),
@@ -154,7 +231,7 @@ export default function RegisterPage() {
               Tạo tài khoản CleanMate
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 mt-1.5">
-              Vui lòng điền thông tin để đăng ký dịch vụ vệ sinh và nhận hỗ trợ tận tâm.
+              Xác thực email và nhận OTP bảo mật để kích hoạt tài khoản an toàn.
             </p>
           </div>
 
@@ -195,6 +272,67 @@ export default function RegisterPage() {
               </div>
             </div>
 
+            {/* Input Email (BẮT BUỘC ĐỂ NHẬN OTP) */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                  Email (Nhận mã OTP) <span className="text-rose-500">*</span>
+                </label>
+              </div>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Mail className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="name@example.com"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"
+                    disabled={isLoading || isSendingOtp}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSendOtp}
+                  disabled={isSendingOtp || otpCountdown > 0 || !email.trim()}
+                  className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-semibold text-xs rounded-xl transition flex items-center gap-1.5 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {isSendingOtp ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  )}
+                  {otpCountdown > 0 ? `${otpCountdown}s` : isOtpSent ? "Gửi lại OTP" : "Gửi OTP"}
+                </button>
+              </div>
+            </div>
+
+            {/* Input Mã OTP 6 số */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                Mã xác thực OTP (6 chữ số) <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <KeyRound className="w-4 h-4" />
+                </div>
+                <input
+                  type="text"
+                  maxLength={6}
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                  placeholder="Ví dụ: 123456"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono tracking-widest text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"
+                  disabled={isLoading}
+                />
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1">
+                Nhấn &quot;Gửi OTP&quot; phía trên và kiểm tra hộp thư Gmail (bao gồm cả thư rác/spam).
+              </p>
+            </div>
+
             {/* Input Số điện thoại (BẮT BUỘC) */}
             <div>
               <div className="flex items-center justify-between mb-1">
@@ -233,29 +371,6 @@ export default function RegisterPage() {
                   value={dateOfBirth}
                   onChange={(e) => setDateOfBirth(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition cursor-pointer"
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-
-            {/* Input Email (TÙY CHỌN - OPTIONAL) */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                  Email
-                </label>
-
-              </div>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                  <Mail className="w-4 h-4" />
-                </div>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@example.com"
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition"
                   disabled={isLoading}
                 />
               </div>
@@ -347,11 +462,11 @@ export default function RegisterPage() {
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Đang khởi tạo tài khoản...
+                  Đang xác thực & khởi tạo...
                 </>
               ) : (
                 <>
-                  Đăng ký tài khoản
+                  Xác thực OTP & Đăng ký
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
@@ -401,7 +516,7 @@ export default function RegisterPage() {
         <div className="relative z-10 max-w-xl mx-auto my-auto text-center lg:text-left">
           <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight leading-snug mb-6 text-white">
             Nhà sạch tinh tươm, <br/>
-              <span className="text-blue-400">cuộc sống thảnh thơi</span>
+            <span className="text-blue-400">cuộc sống thảnh thơi</span>
           </h2>
           <p className="text-sm sm:text-base text-slate-300 leading-relaxed mb-8">
             Đăng ký tài khoản ngay hôm nay để trải nghiệm dịch vụ giúp việc, dọn dẹp vệ sinh chuẩn 5 sao với giá minh bạch và đội ngũ tận tâm.
@@ -410,11 +525,11 @@ export default function RegisterPage() {
           <div className="space-y-3.5 text-left text-sm text-slate-200">
             <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 backdrop-blur-md border border-white/10">
               <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-              <span>Nhận ngay voucher giảm 15% cho đơn dịch vụ đầu tiên</span>
+              <span>Xác thực an toàn bằng mã OTP gửi trực tiếp tới hòm thư cá nhân</span>
             </div>
             <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 backdrop-blur-md border border-white/10">
               <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-              <span>Theo dõi lịch sử đơn hàng và nhân viên trực tiếp trên hệ thống</span>
+              <span>Nhận ngay voucher giảm 15% cho đơn dịch vụ đầu tiên</span>
             </div>
             <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 backdrop-blur-md border border-white/10">
               <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
