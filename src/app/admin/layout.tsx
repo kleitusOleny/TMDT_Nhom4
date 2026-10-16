@@ -311,7 +311,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <div className="bg-blue-50 border border-blue-200 p-2.5 rounded-xl flex items-center gap-2.5 text-blue-700 font-semibold text-xs">
                   <Store className="w-4 h-4 text-blue-600 shrink-0" />
                   <div className="truncate">
-                    <div className="text-[10px] text-blue-500 uppercase font-bold tracking-wider">Chế độ người bán</div>
+                    <div className="text-[10px] text-blue-500 uppercase font-bold tracking-wider">Nhà cung cấp</div>
                     <div className="truncate text-xs font-bold text-blue-900">
                       {currentUser?.fullName || "Gian hàng đối tác"}
                     </div>

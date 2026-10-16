@@ -438,6 +438,15 @@ export default function Header({ currentPath = "/", showSearchOrBooking = true }
                         )}
                       </div>
 
+                      <Link
+                        href="/profile"
+                        onClick={() => setIsDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition"
+                      >
+                        <UserIcon className="w-4 h-4 text-blue-600" />
+                        Thông tin cá nhân
+                      </Link>
+
                       {currentUser.role === "ADMIN" && (
                         <Link
                           href="/admin"

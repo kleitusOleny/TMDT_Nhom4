@@ -51,6 +51,8 @@ export async function GET(req: NextRequest) {
         email: true,
         role: true,
         image: true,
+        dateOfBirth: true,
+        createdAt: true,
         isActive: true,
         shops: {
           select: {
