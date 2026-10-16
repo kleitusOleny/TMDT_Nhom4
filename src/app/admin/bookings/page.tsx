@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useAdmin } from "../layout";
 import { BookingRecord, ServiceRecord, UserRecord } from "@/src/lib/admin-data";
 import { BookingDetailModal, CreateBookingModal } from "@/src/components/admin/AdminModals";
-import { Plus, Search, Eye, Trash2, Check, Ban, Clock, RefreshCw } from "lucide-react";
+import { Plus, Search, Eye, Trash2, Check, Ban, Clock, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 
 export default function AdminBookingsPage() {
   const { viewMode, selectedSellerId, shopsList, showToast } = useAdmin();
@@ -18,8 +18,58 @@ export default function AdminBookingsPage() {
   const [shopFilter, setShopFilter] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
+  const [sortField, setSortField] = useState<string>("id");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
   const [viewingBooking, setViewingBooking] = useState<BookingRecord | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortOrder("asc");
+    }
+  };
+
+  const sortedBookings = [...bookingsList].sort((a, b) => {
+    let aVal: string | number = "";
+    let bVal: string | number = "";
+
+    switch (sortField) {
+      case "id":
+        aVal = a.id;
+        bVal = b.id;
+        break;
+      case "customer":
+        aVal = a.customerName.toLowerCase();
+        bVal = b.customerName.toLowerCase();
+        break;
+      case "service":
+        aVal = a.serviceName.toLowerCase();
+        bVal = b.serviceName.toLowerCase();
+        break;
+      case "time":
+        aVal = `${a.bookingDate} ${a.bookingTime}`;
+        bVal = `${b.bookingDate} ${b.bookingTime}`;
+        break;
+      case "amount":
+        aVal = a.totalAmount;
+        bVal = b.totalAmount;
+        break;
+      case "status":
+        aVal = a.status;
+        bVal = b.status;
+        break;
+      default:
+        return 0;
+    }
+
+    if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
+    if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
+    return 0;
+  });
 
   // Format tiền tệ VNĐ
   const formatVND = (amount: number | undefined) => {
@@ -225,17 +275,89 @@ export default function AdminBookingsPage() {
         <table className="w-full text-left text-xs">
           <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider font-semibold border-b border-slate-200">
             <tr>
-              <th className="px-6 py-3.5">Mã đơn</th>
-              <th className="px-6 py-3.5">Khách hàng</th>
-              <th className="px-6 py-3.5">Dịch vụ & Đối tác</th>
-              <th className="px-6 py-3.5">Thời gian & Địa chỉ</th>
-              <th className="px-6 py-3.5">Tổng tiền</th>
-              <th className="px-6 py-3.5">Trạng thái</th>
+              <th
+                onClick={() => handleSort("id")}
+                className="px-6 py-3.5 cursor-pointer hover:bg-slate-100/80 transition select-none"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Mã đơn</span>
+                  {sortField === "id" ? (
+                    sortOrder === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("customer")}
+                className="px-6 py-3.5 cursor-pointer hover:bg-slate-100/80 transition select-none"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Khách hàng</span>
+                  {sortField === "customer" ? (
+                    sortOrder === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("service")}
+                className="px-6 py-3.5 cursor-pointer hover:bg-slate-100/80 transition select-none"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Dịch vụ & Đối tác</span>
+                  {sortField === "service" ? (
+                    sortOrder === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("time")}
+                className="px-6 py-3.5 cursor-pointer hover:bg-slate-100/80 transition select-none"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Thời gian & Địa chỉ</span>
+                  {sortField === "time" ? (
+                    sortOrder === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("amount")}
+                className="px-6 py-3.5 cursor-pointer hover:bg-slate-100/80 transition select-none"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Tổng tiền</span>
+                  {sortField === "amount" ? (
+                    sortOrder === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("status")}
+                className="px-6 py-3.5 cursor-pointer hover:bg-slate-100/80 transition select-none"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Trạng thái</span>
+                  {sortField === "status" ? (
+                    sortOrder === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />
+                  )}
+                </div>
+              </th>
               <th className="px-6 py-3.5 text-right">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-slate-700">
-            {bookingsList.map((booking) => (
+            {sortedBookings.map((booking) => (
               <tr key={booking.id} className="hover:bg-slate-50/80 transition">
                 <td className="px-6 py-4 font-mono font-bold text-blue-600">
                   <button

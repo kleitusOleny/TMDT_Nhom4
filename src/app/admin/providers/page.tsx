@@ -5,7 +5,7 @@ import { useAdmin } from "../layout";
 import { useRouter } from "next/navigation";
 import { ProviderRecord } from "@/src/lib/admin-data";
 import { ProviderFormModal } from "@/src/components/admin/AdminModals";
-import { Plus, Search, Edit, Trash2, Building2, Layers } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Building2, Layers, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 
 export default function AdminProvidersPage() {
   const { showToast } = useAdmin();
@@ -15,8 +15,58 @@ export default function AdminProvidersPage() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
+  const [sortField, setSortField] = useState<string>("name");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProvider, setEditingProvider] = useState<ProviderRecord | null>(null);
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortOrder("asc");
+    }
+  };
+
+  const sortedProviders = [...providersList].sort((a, b) => {
+    let aVal: string | number = "";
+    let bVal: string | number = "";
+
+    switch (sortField) {
+      case "name":
+        aVal = a.name.toLowerCase();
+        bVal = b.name.toLowerCase();
+        break;
+      case "owner":
+        aVal = a.ownerName.toLowerCase();
+        bVal = b.ownerName.toLowerCase();
+        break;
+      case "area":
+        aVal = a.area.toLowerCase();
+        bVal = b.area.toLowerCase();
+        break;
+      case "servicesCount":
+        aVal = a.servicesCount;
+        bVal = b.servicesCount;
+        break;
+      case "rating":
+        aVal = a.rating;
+        bVal = b.rating;
+        break;
+      case "status":
+        aVal = a.approvalStatus;
+        bVal = b.approvalStatus;
+        break;
+      default:
+        return 0;
+    }
+
+    if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
+    if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
+    return 0;
+  });
 
   const fetchProviders = async () => {
     try {
@@ -135,17 +185,89 @@ export default function AdminProvidersPage() {
         <table className="w-full text-left text-xs">
           <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider font-semibold border-b border-slate-200">
             <tr>
-              <th className="px-6 py-3.5">Doanh nghiệp / Shop</th>
-              <th className="px-6 py-3.5">Chủ sở hữu</th>
-              <th className="px-6 py-3.5">Khu vực phục vụ</th>
-              <th className="px-6 py-3.5">Số gói dịch vụ</th>
-              <th className="px-6 py-3.5">Đánh giá</th>
-              <th className="px-6 py-3.5">Trạng thái</th>
+              <th
+                onClick={() => handleSort("name")}
+                className="px-6 py-3.5 cursor-pointer hover:bg-slate-100/80 transition select-none"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Doanh nghiệp / Shop</span>
+                  {sortField === "name" ? (
+                    sortOrder === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("owner")}
+                className="px-6 py-3.5 cursor-pointer hover:bg-slate-100/80 transition select-none"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Chủ sở hữu</span>
+                  {sortField === "owner" ? (
+                    sortOrder === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("area")}
+                className="px-6 py-3.5 cursor-pointer hover:bg-slate-100/80 transition select-none"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Khu vực phục vụ</span>
+                  {sortField === "area" ? (
+                    sortOrder === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("servicesCount")}
+                className="px-6 py-3.5 cursor-pointer hover:bg-slate-100/80 transition select-none"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Số gói dịch vụ</span>
+                  {sortField === "servicesCount" ? (
+                    sortOrder === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("rating")}
+                className="px-6 py-3.5 cursor-pointer hover:bg-slate-100/80 transition select-none"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Đánh giá</span>
+                  {sortField === "rating" ? (
+                    sortOrder === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("status")}
+                className="px-6 py-3.5 cursor-pointer hover:bg-slate-100/80 transition select-none"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Trạng thái</span>
+                  {sortField === "status" ? (
+                    sortOrder === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />
+                  )}
+                </div>
+              </th>
               <th className="px-6 py-3.5 text-right">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-slate-700">
-            {providersList.map((shop) => (
+            {sortedProviders.map((shop) => (
               <tr key={shop.id} className="hover:bg-slate-50/80 transition">
                 <td className="px-6 py-4 font-semibold text-slate-900">
                   <div className="flex items-center gap-2">
