@@ -63,11 +63,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Nếu người dùng chọn làm mặc định, hoặc đây là địa chỉ đầu tiên -> set isDefault = true
-    const addressCount = await prisma.userAddress.count({ where: { userId } });
+    // Đếm số lượng địa chỉ hiện có của user
+    let addressCount = 0;
+    try {
+      if (prisma.userAddress && typeof prisma.userAddress.count === "function") {
+        addressCount = await prisma.userAddress.count({ where: { userId } });
+      } else if (prisma.userAddress && typeof prisma.userAddress.findMany === "function") {
+        const userAddrs = await prisma.userAddress.findMany({ where: { userId }, select: { id: true } });
+        addressCount = userAddrs.length;
+      }
+    } catch (countErr) {
+      console.warn("[Addresses API] Warning khi đếm địa chỉ:", countErr);
+    }
+
     const shouldBeDefault = Boolean(isDefault) || addressCount === 0;
 
-    if (shouldBeDefault) {
+    if (shouldBeDefault && prisma.userAddress) {
       await prisma.userAddress.updateMany({
         where: { userId },
         data: { isDefault: false },
