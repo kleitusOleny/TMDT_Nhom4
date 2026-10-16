@@ -47,6 +47,33 @@ export async function GET(
             },
           },
         },
+        comments: {
+          where: { parentId: null }, // Lấy các câu hỏi gốc
+          orderBy: { createdAt: "desc" },
+          include: {
+            user: {
+              select: {
+                id: true,
+                fullName: true,
+                role: true,
+                image: true,
+              },
+            },
+            replies: {
+              orderBy: { createdAt: "asc" },
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    fullName: true,
+                    role: true,
+                    image: true,
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     });
 

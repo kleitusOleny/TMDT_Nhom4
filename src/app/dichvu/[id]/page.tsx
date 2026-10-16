@@ -15,6 +15,10 @@ import {
   Loader2,
   AlertCircle,
   User,
+  MessageSquare,
+  Send,
+  Reply,
+  CornerDownRight,
 } from "lucide-react";
 
 interface PricingOption {
@@ -36,6 +40,19 @@ interface ReviewItem {
     fullName: string | null;
     image?: string | null;
   };
+}
+
+interface CommentItem {
+  id: number;
+  content: string;
+  createdAt: string;
+  user: {
+    id: number;
+    fullName: string | null;
+    role: string;
+    image: string | null;
+  };
+  replies?: CommentItem[];
 }
 
 interface DichVuData {
@@ -61,6 +78,7 @@ interface DichVuData {
     area: string | null;
   };
   reviews?: ReviewItem[];
+  comments?: CommentItem[];
 }
 
 function DichVuContent({ serviceId }: { serviceId: string }) {
@@ -68,8 +86,8 @@ function DichVuContent({ serviceId }: { serviceId: string }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Tab hiện tại: Mô tả chi tiết | Bảng giá | Đánh giá
-  const [activeTab, setActiveTab] = useState<"desc" | "pricing" | "reviews">("desc");
+  // Tab hiện tại: Mô tả chi tiết | Bảng giá | Đánh giá | Hỏi đáp
+  const [activeTab, setActiveTab] = useState<"desc" | "pricing" | "reviews" | "comments">("desc");
 
   // Ảnh được chọn hiển thị lớn
   const [selectedImage, setSelectedImage] = useState<string>("");
@@ -78,40 +96,93 @@ function DichVuContent({ serviceId }: { serviceId: string }) {
   const [selectedPricingId, setSelectedPricingId] = useState<string>("");
   const [cleaningDate, setCleaningDate] = useState("");
 
-  useEffect(() => {
-    async function fetchDichVu() {
-      if (!serviceId) return;
+  // Bình luận & Đặt câu hỏi
+  const [newQuestion, setNewQuestion] = useState("");
+  const [replyingCommentId, setReplyingCommentId] = useState<number | null>(null);
+  const [replyContent, setReplyContent] = useState("");
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [commentError, setCommentError] = useState("");
+  const [commentSuccess, setCommentSuccess] = useState("");
 
-      try {
-        setIsLoading(true);
-        setError(null);
+  const fetchDichVu = async () => {
+    if (!serviceId) return;
 
-        // Gọi API lấy dịch vụ theo dynamic ID từ database
-        const res = await fetch(`/api/dich-vu/${serviceId}`);
-        const json = await res.json();
+    try {
+      setIsLoading(true);
+      setError(null);
 
-        if (!res.ok || !json.success) {
-          throw new Error(json.message || `Không tìm thấy dịch vụ #${serviceId}.`);
-        }
+      // Gọi API lấy dịch vụ theo dynamic ID từ database
+      const res = await fetch(`/api/dich-vu/${serviceId}`);
+      const json = await res.json();
 
-        const data: DichVuData = json.data;
-        setDichVu(data);
-
-        if (data.images && data.images.length > 0) {
-          setSelectedImage(data.images[0]);
-        }
-
-        if (data.pricingTable && data.pricingTable.length > 0) {
-          setSelectedPricingId(data.pricingTable[0].id);
-        }
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : "Đã xảy ra lỗi khi tải dữ liệu";
-        setError(msg);
-      } finally {
-        setIsLoading(false);
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || `Không tìm thấy dịch vụ #${serviceId}.`);
       }
+
+      const data: DichVuData = json.data;
+      setDichVu(data);
+
+      if (data.images && data.images.length > 0) {
+        setSelectedImage(data.images[0]);
+      }
+
+      if (data.pricingTable && data.pricingTable.length > 0) {
+        setSelectedPricingId(data.pricingTable[0].id);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Đã xảy ra lỗi khi tải dữ liệu";
+      setError(msg);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePostComment = async (parentId?: number) => {
+    setCommentError("");
+    setCommentSuccess("");
+    const content = parentId ? replyContent.trim() : newQuestion.trim();
+
+    if (!content) {
+      setCommentError("Vui lòng nhập nội dung câu hỏi.");
+      return;
     }
 
+    try {
+      setIsSubmittingComment(true);
+      const res = await fetch(`/api/dich-vu/${serviceId}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content, parentId }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Không thể gửi bình luận.");
+      }
+
+      setCommentSuccess(data.message || "Gửi câu hỏi thành công!");
+      if (parentId) {
+        setReplyContent("");
+        setReplyingCommentId(null);
+      } else {
+        setNewQuestion("");
+      }
+
+      // Tải lại dữ liệu bình luận mới
+      const reloadRes = await fetch(`/api/dich-vu/${serviceId}`);
+      const reloadJson = await reloadRes.json();
+      if (reloadJson.success) {
+        setDichVu(reloadJson.data);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Đã xảy ra lỗi khi gửi.";
+      setCommentError(msg);
+    } finally {
+      setIsSubmittingComment(false);
+    }
+  };
+
+  useEffect(() => {
     fetchDichVu();
   }, [serviceId]);
 
@@ -269,6 +340,18 @@ function DichVuContent({ serviceId }: { serviceId: string }) {
                 >
                   Đánh giá ({dichVu.totalReviews})
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("comments")}
+                  className={`pb-3 border-b-2 transition cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === "comments"
+                      ? "border-blue-600 text-blue-600 font-bold"
+                      : "border-transparent text-slate-500 hover:text-slate-800"
+                  }`}
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  <span>Hỏi đáp & Bình luận ({dichVu.comments?.length || 0})</span>
+                </button>
               </nav>
             </div>
 
@@ -419,6 +502,196 @@ function DichVuContent({ serviceId }: { serviceId: string }) {
                                 />
                               </div>
                             ))}
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* TAB HỎI ĐÁP & BÌNH LUẬN VỀ DỊCH VỤ */}
+            {activeTab === "comments" && (
+              <div className="space-y-6">
+                {/* Form đặt câu hỏi mới */}
+                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 text-blue-600" />
+                    <h3 className="text-base font-bold text-slate-900">
+                      Hỏi đáp về dịch vụ với {dichVu.shop.name}
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Bạn có thắc mắc về quy trình, vật tư hay thời gian phục vụ? Đặt câu hỏi tại đây để được đối tác tư vấn và giải đáp chi tiết.
+                  </p>
+
+                  {commentError && (
+                    <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                      <span>{commentError}</span>
+                    </div>
+                  )}
+
+                  {commentSuccess && (
+                    <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs rounded-xl flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                      <span>{commentSuccess}</span>
+                    </div>
+                  )}
+
+                  <div className="relative">
+                    <textarea
+                      rows={3}
+                      value={newQuestion}
+                      onChange={(e) => setNewQuestion(e.target.value)}
+                      placeholder="Ví dụ: Dịch vụ này có hỗ trợ dọn vào cuối tuần không? Nhà có nuôi chó mèo thì cần chuẩn bị gì trước khi nhân viên đến?..."
+                      className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition resize-none"
+                    />
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => handlePostComment()}
+                      disabled={isSubmittingComment || !newQuestion.trim()}
+                      className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-xs flex items-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      {isSubmittingComment ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Send className="w-3.5 h-3.5" />
+                      )}
+                      <span>Gửi câu hỏi</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Danh sách các câu hỏi & trả lời */}
+                <div className="space-y-4">
+                  {!dichVu.comments || dichVu.comments.length === 0 ? (
+                    <div className="p-8 text-center bg-white rounded-2xl border border-slate-100">
+                      <MessageSquare className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                      <p className="text-sm font-semibold text-slate-700">Chưa có câu hỏi nào</p>
+                      <p className="text-xs text-slate-400 mt-1">Hãy là người đầu tiên đặt câu hỏi thắc mắc về dịch vụ này!</p>
+                    </div>
+                  ) : (
+                    dichVu.comments.map((cmt) => (
+                      <div
+                        key={cmt.id}
+                        className="p-5 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-3"
+                      >
+                        {/* Header bình luận */}
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-slate-100 text-blue-600 flex items-center justify-center font-bold text-sm">
+                              {cmt.user?.fullName ? cmt.user.fullName[0].toUpperCase() : <User className="w-4 h-4" />}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-bold text-xs sm:text-sm text-slate-900">
+                                  {cmt.user?.fullName || "Khách hàng"}
+                                </h4>
+                                {cmt.user?.role === "PROVIDER" && (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    Đối tác
+                                  </span>
+                                )}
+                                {cmt.user?.role === "ADMIN" && (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                    Admin
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[11px] text-slate-400">
+                                {new Date(cmt.createdAt).toLocaleDateString("vi-VN", {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReplyingCommentId(replyingCommentId === cmt.id ? null : cmt.id);
+                              setReplyContent("");
+                            }}
+                            className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 cursor-pointer transition"
+                          >
+                            <Reply className="w-3.5 h-3.5" />
+                            <span>Trả lời</span>
+                          </button>
+                        </div>
+
+                        {/* Nội dung câu hỏi */}
+                        <p className="text-xs sm:text-sm text-slate-800 leading-relaxed pl-12">
+                          {cmt.content}
+                        </p>
+
+                        {/* Danh sách các câu trả lời (replies) nếu có */}
+                        {cmt.replies && cmt.replies.length > 0 && (
+                          <div className="pl-12 space-y-2.5 pt-2">
+                            {cmt.replies.map((rep) => (
+                              <div
+                                key={rep.id}
+                                className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1.5"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <CornerDownRight className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                  <span className="font-bold text-xs text-slate-900">
+                                    {rep.user?.fullName || "Phản hồi"}
+                                  </span>
+                                  {rep.user?.role === "PROVIDER" && (
+                                    <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                      Nhà cung cấp
+                                    </span>
+                                  )}
+                                  {rep.user?.role === "ADMIN" && (
+                                    <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800">
+                                      Admin
+                                    </span>
+                                  )}
+                                  <span className="text-[10px] text-slate-400 ml-auto">
+                                    {new Date(rep.createdAt).toLocaleDateString("vi-VN", {
+                                      day: "numeric",
+                                      month: "short",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-slate-700 pl-5 leading-relaxed">{rep.content}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Ô nhập câu trả lời khi nhấn Trả lời */}
+                        {replyingCommentId === cmt.id && (
+                          <div className="pl-12 pt-2 space-y-2">
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={replyContent}
+                                onChange={(e) => setReplyContent(e.target.value)}
+                                placeholder="Viết câu trả lời hoặc phản hồi..."
+                                className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handlePostComment(cmt.id)}
+                                disabled={isSubmittingComment || !replyContent.trim()}
+                                className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1 transition disabled:opacity-50"
+                              >
+                                {isSubmittingComment ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                                <span>Gửi</span>
+                              </button>
+                            </div>
                           </div>
                         )}
                       </div>

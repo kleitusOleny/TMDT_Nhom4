@@ -115,7 +115,7 @@ async function main() {
           serviceId: s.id,
           rating: commentTemplate.rating,
           comment: commentTemplate.comment,
-          images: commentTemplate.images,
+          images: commentTemplate.images ?? undefined,
           createdAt: new Date(Date.now() - (i + 1) * 86400000 * 2),
         },
       });
