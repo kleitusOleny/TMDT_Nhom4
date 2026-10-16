@@ -30,13 +30,28 @@ interface CategoryItem {
   };
 }
 
+interface ShopItem {
+  id: number;
+  name: string;
+  slug: string;
+  rating: number;
+  totalReviews: number;
+  area?: string | null;
+  _count?: {
+    services: number;
+  };
+}
+
 interface FilterSidebarProps {
   categories: CategoryItem[];
   selectedCategory: string;
+  shops: ShopItem[];
+  selectedShop: string;
   minPrice: string;
   maxPrice: string;
   selectedRating: number;
   onSelectCategory: (cat: string) => void;
+  onSelectShop: (shop: string) => void;
   onChangeMinPrice: (val: string) => void;
   onChangeMaxPrice: (val: string) => void;
   onSelectRating: (val: number) => void;
@@ -72,10 +87,13 @@ interface ServiceItem {
 function FilterSidebar({
   categories,
   selectedCategory,
+  shops,
+  selectedShop,
   minPrice,
   maxPrice,
   selectedRating,
   onSelectCategory,
+  onSelectShop,
   onChangeMinPrice,
   onChangeMaxPrice,
   onSelectRating,
@@ -148,6 +166,68 @@ function FilterSidebar({
                   }`}
                 >
                   {cat._count.services}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 2. Lọc theo Nhà Cung Cấp (Đối tác CleanMate) */}
+      <div>
+        <div className="flex items-center gap-1.5 mb-3">
+          <Building2 className="w-3.5 h-3.5 text-blue-600" />
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            Nhà cung cấp
+          </h3>
+        </div>
+        <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+          <button
+            onClick={() => onSelectShop("all")}
+            className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs sm:text-sm transition flex items-center justify-between cursor-pointer ${
+              selectedShop === "all"
+                ? "bg-blue-600 text-white font-bold shadow-xs shadow-blue-500/30"
+                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+            }`}
+          >
+            <span>Tất cả đối tác</span>
+            <span
+              className={`text-[11px] px-2 py-0.5 rounded-full ${
+                selectedShop === "all"
+                  ? "bg-white/20 text-white"
+                  : "bg-slate-100 text-slate-500"
+              }`}
+            >
+              {shops.length}
+            </span>
+          </button>
+          {shops.map((shop) => (
+            <button
+              key={shop.id}
+              onClick={() => onSelectShop(shop.slug)}
+              className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs sm:text-sm transition flex items-center justify-between cursor-pointer ${
+                selectedShop === shop.slug
+                  ? "bg-blue-600 text-white font-bold shadow-xs shadow-blue-500/30"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              }`}
+            >
+              <div className="truncate pr-2">
+                <div className="truncate">{shop.name}</div>
+                {shop.area && (
+                  <div className={`text-[10px] truncate ${selectedShop === shop.slug ? "text-blue-100" : "text-slate-400"}`}>
+                    {shop.area}
+                  </div>
+                )}
+              </div>
+              {shop._count?.services !== undefined && (
+                <span
+                  className={`text-[11px] px-2 py-0.5 rounded-full shrink-0 ${
+                    selectedShop === shop.slug
+                      ? "bg-white/20 text-white"
+                      : "bg-slate-100 text-slate-500"
+                  }`}
+                >
+                  {shop._count.services}
                 </span>
               )}
             </button>
@@ -259,6 +339,7 @@ function ServiceListContent() {
   // Các giá trị Filter
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || "all");
+  const [selectedShop, setSelectedShop] = useState(searchParams.get("shop") || "all");
   const [minPrice, setMinPrice] = useState(searchParams.get("minPrice") || "");
   const [maxPrice, setMaxPrice] = useState(searchParams.get("maxPrice") || "");
   const [selectedRating, setSelectedRating] = useState<number>(
@@ -269,6 +350,7 @@ function ServiceListContent() {
   // State dữ liệu
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [shops, setShops] = useState<ShopItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -287,6 +369,7 @@ function ServiceListContent() {
         const params = new URLSearchParams();
         if (search.trim()) params.set("search", search.trim());
         if (selectedCategory && selectedCategory !== "all") params.set("category", selectedCategory);
+        if (selectedShop && selectedShop !== "all") params.set("shop", selectedShop);
         if (minPrice) params.set("minPrice", minPrice);
         if (maxPrice) params.set("maxPrice", maxPrice);
         if (selectedRating > 0) params.set("rating", String(selectedRating));
@@ -302,6 +385,7 @@ function ServiceListContent() {
         if (!isCancelled) {
           setServices(json.data.services || []);
           setCategories(json.data.categories || []);
+          setShops(json.data.shops || []);
         }
       } catch (err: unknown) {
         if (!isCancelled) {
@@ -320,7 +404,7 @@ function ServiceListContent() {
     return () => {
       isCancelled = true;
     };
-  }, [search, selectedCategory, minPrice, maxPrice, selectedRating, sortBy]);
+  }, [search, selectedCategory, selectedShop, minPrice, maxPrice, selectedRating, sortBy]);
 
   // Cập nhật URL Query
   const updateQueryUrl = (updates: Record<string, string | number | undefined>) => {
@@ -341,6 +425,7 @@ function ServiceListContent() {
   const handleResetFilter = () => {
     setSearch("");
     setSelectedCategory("all");
+    setSelectedShop("all");
     setMinPrice("");
     setMaxPrice("");
     setSelectedRating(0);
@@ -430,12 +515,18 @@ function ServiceListContent() {
             <FilterSidebar
               categories={categories}
               selectedCategory={selectedCategory}
+              shops={shops}
+              selectedShop={selectedShop}
               minPrice={minPrice}
               maxPrice={maxPrice}
               selectedRating={selectedRating}
               onSelectCategory={(cat) => {
                 setSelectedCategory(cat);
                 updateQueryUrl({ category: cat });
+              }}
+              onSelectShop={(shop) => {
+                setSelectedShop(shop);
+                updateQueryUrl({ shop });
               }}
               onChangeMinPrice={(val) => {
                 setMinPrice(val);
@@ -591,12 +682,18 @@ function ServiceListContent() {
               <FilterSidebar
                 categories={categories}
                 selectedCategory={selectedCategory}
+                shops={shops}
+                selectedShop={selectedShop}
                 minPrice={minPrice}
                 maxPrice={maxPrice}
                 selectedRating={selectedRating}
                 onSelectCategory={(cat) => {
                   setSelectedCategory(cat);
                   updateQueryUrl({ category: cat });
+                }}
+                onSelectShop={(shop) => {
+                  setSelectedShop(shop);
+                  updateQueryUrl({ shop });
                 }}
                 onChangeMinPrice={(val) => {
                   setMinPrice(val);

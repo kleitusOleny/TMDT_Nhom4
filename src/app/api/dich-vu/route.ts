@@ -7,6 +7,7 @@ export async function GET(req: NextRequest) {
 
     const search = searchParams.get("search")?.trim() || "";
     const categorySlug = searchParams.get("category")?.trim() || "";
+    const shopSlug = searchParams.get("shop")?.trim() || searchParams.get("provider")?.trim() || "";
     const minPrice = searchParams.get("minPrice") ? Number(searchParams.get("minPrice")) : undefined;
     const maxPrice = searchParams.get("maxPrice") ? Number(searchParams.get("maxPrice")) : undefined;
     const rating = searchParams.get("rating") ? Number(searchParams.get("rating")) : undefined;
@@ -21,6 +22,7 @@ export async function GET(req: NextRequest) {
       where.OR = [
         { title: { contains: search } },
         { description: { contains: search } },
+        { shop: { name: { contains: search } } },
       ];
     }
 
@@ -29,6 +31,12 @@ export async function GET(req: NextRequest) {
         some: {
           slug: categorySlug,
         },
+      };
+    }
+
+    if (shopSlug && shopSlug !== "all") {
+      where.shop = {
+        slug: shopSlug,
       };
     }
 
@@ -58,8 +66,8 @@ export async function GET(req: NextRequest) {
       orderBy = { rating: "desc" };
     }
 
-    // Lấy song song danh sách dịch vụ và danh mục để làm bộ lọc
-    const [services, categories] = await Promise.all([
+    // Lấy song song danh sách dịch vụ, danh mục và nhà cung cấp để làm bộ lọc
+    const [services, categories, shops] = await Promise.all([
       prisma.dichVu.findMany({
         where,
         orderBy,
@@ -98,6 +106,21 @@ export async function GET(req: NextRequest) {
           },
         },
       }),
+      prisma.shop.findMany({
+        where: { approvalStatus: "APPROVED" },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          rating: true,
+          totalReviews: true,
+          area: true,
+          _count: {
+            select: { services: true },
+          },
+        },
+        orderBy: { name: "asc" },
+      }),
     ]);
 
     // Tính toán số sao trung bình và số lượng đánh giá dựa trên count thực tế
@@ -127,6 +150,7 @@ export async function GET(req: NextRequest) {
       data: {
         services: formattedServices,
         categories,
+        shops,
         total: formattedServices.length,
       },
     });
