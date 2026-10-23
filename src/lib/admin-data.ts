@@ -42,6 +42,7 @@ export interface ServiceRecord {
   completedBookings: number;
   description?: string;
   images?: string[];
+  createdAt?: string;
   pricingTable?: {
     id: string;
     title: string;

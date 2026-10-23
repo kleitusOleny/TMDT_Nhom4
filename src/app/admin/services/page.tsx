@@ -18,8 +18,8 @@ function AdminServicesContent() {
   const [shopFilter, setShopFilter] = useState(initialSellerParam);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const [sortField, setSortField] = useState<string>("name");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [sortField, setSortField] = useState<string>("createdAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<ServiceRecord | null>(null);
@@ -61,6 +61,10 @@ function AdminServicesContent() {
       case "status":
         aVal = a.status;
         bVal = b.status;
+        break;
+      case "createdAt":
+        aVal = a.createdAt ? new Date(a.createdAt).getTime() : a.id;
+        bVal = b.createdAt ? new Date(b.createdAt).getTime() : b.id;
         break;
       default:
         return 0;

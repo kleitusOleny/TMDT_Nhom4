@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
 
     const dbBookings = await prisma.booking.findMany({
       where,
-      orderBy: { scheduledDate: "desc" },
+      orderBy: [{ createdAt: "desc" }, { scheduledDate: "desc" }],
       include: {
         customer: {
           select: { id: true, fullName: true, phone: true, email: true },

@@ -44,7 +44,7 @@ export default function AdminBookingsPage() {
   const [shopFilter, setShopFilter] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const [sortField, setSortField] = useState<string>("id");
+  const [sortField, setSortField] = useState<string>("time");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   const [viewingBooking, setViewingBooking] = useState<BookingRecord | null>(null);
@@ -82,8 +82,8 @@ export default function AdminBookingsPage() {
         bVal = b.serviceName.toLowerCase();
         break;
       case "time":
-        aVal = `${a.bookingDate} ${a.bookingTime}`;
-        bVal = `${b.bookingDate} ${b.bookingTime}`;
+        aVal = a.createdAt ? new Date(a.createdAt).getTime() : new Date(`${a.bookingDate} ${a.bookingTime}`).getTime();
+        bVal = b.createdAt ? new Date(b.createdAt).getTime() : new Date(`${b.bookingDate} ${b.bookingTime}`).getTime();
         break;
       case "amount":
         aVal = a.totalAmount;

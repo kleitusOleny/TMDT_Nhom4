@@ -14,8 +14,8 @@ export default function AdminUsersPage() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const [sortField, setSortField] = useState<string>("fullName");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [sortField, setSortField] = useState<string>("joinedDate");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
@@ -58,8 +58,23 @@ export default function AdminUsersPage() {
         bVal = b.status;
         break;
       case "joinedDate":
-        aVal = a.joinedDate;
-        bVal = b.joinedDate;
+        // Chuyển sang timestamp để sắp xếp chính xác (hỗ trợ cả ISO YYYY-MM-DD và DD/MM/YYYY)
+        aVal = (() => {
+          if (!a.joinedDate) return 0;
+          if (a.joinedDate.includes("/")) {
+            const parts = a.joinedDate.split("/");
+            if (parts.length === 3) return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime() || 0;
+          }
+          return new Date(a.joinedDate).getTime() || 0;
+        })();
+        bVal = (() => {
+          if (!b.joinedDate) return 0;
+          if (b.joinedDate.includes("/")) {
+            const parts = b.joinedDate.split("/");
+            if (parts.length === 3) return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime() || 0;
+          }
+          return new Date(b.joinedDate).getTime() || 0;
+        })();
         break;
       default:
         return 0;

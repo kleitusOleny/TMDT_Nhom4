@@ -92,6 +92,7 @@ export async function GET(req: NextRequest) {
         rating: averageRating,
         completedBookings: s._count.bookings || reviewCount || 0,
         description: s.description || "",
+        createdAt: s.createdAt.toISOString(),
         images: Array.isArray(s.images)
           ? (s.images as string[])
           : typeof s.images === "string"

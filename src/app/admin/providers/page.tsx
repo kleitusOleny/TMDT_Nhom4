@@ -15,8 +15,8 @@ export default function AdminProvidersPage() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const [sortField, setSortField] = useState<string>("name");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [sortField, setSortField] = useState<string>("createdAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProvider, setEditingProvider] = useState<ProviderRecord | null>(null);
@@ -58,6 +58,10 @@ export default function AdminProvidersPage() {
       case "status":
         aVal = a.approvalStatus;
         bVal = b.approvalStatus;
+        break;
+      case "createdAt":
+        aVal = a.createdAt ? new Date(a.createdAt).getTime() : a.id;
+        bVal = b.createdAt ? new Date(b.createdAt).getTime() : b.id;
         break;
       default:
         return 0;
