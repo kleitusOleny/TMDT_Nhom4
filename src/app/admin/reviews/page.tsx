@@ -5,7 +5,6 @@ import { useAdmin } from "../layout";
 import {
   Star,
   Search,
-  Filter,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
@@ -15,14 +14,10 @@ import {
   Sparkles,
   ShoppingBag,
   Clock,
-  Calendar,
   X,
-  Plus,
   Smile,
   Frown,
-  Meh,
   Tag,
-  CheckCircle2,
 } from "lucide-react";
 import { formatDateTimeVN } from "@/src/lib/date-utils";
 
@@ -79,11 +74,37 @@ export default function AdminReviewsPage() {
 
   // Modal chi tiết bình luận & Phân loại cảm xúc theo khía cạnh
   const [selectedReview, setSelectedReview] = useState<ReviewAdminItem | null>(null);
+  const [isAnalyzingAI, setIsAnalyzingAI] = useState(false);
 
-  // State thêm khía cạnh cảm xúc thủ công / thử nghiệm
-  const [newAspect, setNewAspect] = useState("");
-  const [newSentiment, setNewSentiment] = useState<"POSITIVE" | "NEUTRAL" | "NEGATIVE">("POSITIVE");
-  const [newHighlight, setNewHighlight] = useState("");
+  // Gọi API AI phân loại cảm xúc khía cạnh tự động khi chọn review
+  const handleSelectReviewWithAI = async (review: ReviewAdminItem) => {
+    setSelectedReview(review);
+
+    // Nếu bình luận chưa có khía cạnh nào, tự động gọi AI Service để phân loại
+    if (!review.aspectSentiments || review.aspectSentiments.length === 0) {
+      try {
+        setIsAnalyzingAI(true);
+        const res = await fetch("/api/admin/reviews/sentiment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: review.comment }),
+        });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.predictions) && data.predictions.length > 0) {
+          const updated: ReviewAdminItem = {
+            ...review,
+            aspectSentiments: data.predictions,
+          };
+          setSelectedReview(updated);
+          setReviewsList((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+        }
+      } catch (err) {
+        console.error("Lỗi phân tích cảm xúc khía cạnh:", err);
+      } finally {
+        setIsAnalyzingAI(false);
+      }
+    }
+  };
 
   const fetchReviews = async () => {
     try {
@@ -174,27 +195,7 @@ export default function AdminReviewsPage() {
     }
   };
 
-  // Thêm khía cạnh cảm xúc tạm thời
-  const handleAddAspectSentiment = () => {
-    if (!selectedReview || !newAspect.trim()) return;
 
-    const newItem: AspectSentimentItem = {
-      aspect: newAspect.trim(),
-      sentiment: newSentiment,
-      highlightText: newHighlight.trim() || undefined,
-    };
-
-    const updated = {
-      ...selectedReview,
-      aspectSentiments: [...(selectedReview.aspectSentiments || []), newItem],
-    };
-
-    setSelectedReview(updated);
-    setReviewsList((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
-    setNewAspect("");
-    setNewHighlight("");
-    showToast(`Đã gán nhãn khía cạnh [${newItem.aspect}] thành công!`);
-  };
 
   // Thống kê nhanh
   const totalReviews = reviewsList.length;
@@ -391,7 +392,7 @@ export default function AdminReviewsPage() {
                 sortedReviews.map((item) => (
                   <tr
                     key={item.id}
-                    onClick={() => setSelectedReview(item)}
+                    onClick={() => handleSelectReviewWithAI(item)}
                     className="hover:bg-slate-50/80 transition cursor-pointer group"
                   >
                     {/* Khách hàng */}
@@ -605,9 +606,16 @@ export default function AdminReviewsPage() {
                   <Sparkles className="w-4 h-4 text-indigo-600" />
                   <span>Phân loại cảm xúc theo khía cạnh (Aspect-Based Sentiment)</span>
                 </div>
-                <span className="text-[11px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
-                  Hỗ trợ phân tích người bán
-                </span>
+                {isAnalyzingAI ? (
+                  <span className="flex items-center gap-1.5 text-[11px] font-semibold text-indigo-700 bg-indigo-100/80 px-2.5 py-0.5 rounded-full animate-pulse border border-indigo-200">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span>AI PhoBERT đang phân tích...</span>
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
+                    Hỗ trợ phân tích người bán
+                  </span>
+                )}
               </div>
 
               {/* Danh sách khía cạnh đã phân loại */}
@@ -648,45 +656,45 @@ export default function AdminReviewsPage() {
               ) : (
                 <div className="p-4 bg-white/80 rounded-xl border border-dashed border-indigo-200 text-center text-xs text-slate-500 space-y-1">
                   <p className="font-semibold text-indigo-900">
-                    Phần phân loại cảm xúc khía cạnh tạm thời để trống
+                    Chưa có phân loại cảm xúc
                   </p>
                   <p className="text-[11px] text-slate-400">
-                    Bạn có thể gán nhãn các khía cạnh (như Chất lượng làm sạch, Thái độ nhân viên, Giá cả, Đúng giờ) bên dưới để hỗ trợ người bán tối ưu dịch vụ.
+                    {/*Bạn có thể gán nhãn các khía cạnh (như Chất lượng làm sạch, Thái độ nhân viên, Giá cả, Đúng giờ) bên dưới để hỗ trợ người bán tối ưu dịch vụ.*/}
                   </p>
                 </div>
               )}
 
               {/* Form gán nhãn khía cạnh mới */}
-              <div className="pt-2 border-t border-indigo-100/80">
-                <div className="text-xs font-bold text-slate-700 mb-2">Thêm khía cạnh cảm xúc:</div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <input
-                    type="text"
-                    value={newAspect}
-                    onChange={(e) => setNewAspect(e.target.value)}
-                    placeholder="Khía cạnh (vd: Chất lượng, Thái độ, Giá...)"
-                    className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 outline-none focus:border-indigo-600"
-                  />
-                  <select
-                    value={newSentiment}
-                    onChange={(e) => setNewSentiment(e.target.value as "POSITIVE" | "NEUTRAL" | "NEGATIVE")}
-                    className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 outline-none focus:border-indigo-600 font-medium"
-                  >
-                    <option value="POSITIVE">Tích cực (Positive)</option>
-                    <option value="NEUTRAL">Trung tính (Neutral)</option>
-                    <option value="NEGATIVE">Tiêu cực (Negative)</option>
-                  </select>
-                  <button
-                    type="button"
-                    onClick={handleAddAspectSentiment}
-                    disabled={!newAspect.trim()}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Gán nhãn</span>
-                  </button>
-                </div>
-              </div>
+              {/*<div className="pt-2 border-t border-indigo-100/80">*/}
+              {/*  <div className="text-xs font-bold text-slate-700 mb-2">Thêm khía cạnh cảm xúc:</div>*/}
+              {/*  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">*/}
+              {/*    <input*/}
+              {/*      type="text"*/}
+              {/*      value={newAspect}*/}
+              {/*      onChange={(e) => setNewAspect(e.target.value)}*/}
+              {/*      placeholder="Khía cạnh (vd: Chất lượng, Thái độ, Giá...)"*/}
+              {/*      className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 outline-none focus:border-indigo-600"*/}
+              {/*    />*/}
+              {/*    <select*/}
+              {/*      value={newSentiment}*/}
+              {/*      onChange={(e) => setNewSentiment(e.target.value as "POSITIVE" | "NEUTRAL" | "NEGATIVE")}*/}
+              {/*      className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 outline-none focus:border-indigo-600 font-medium"*/}
+              {/*    >*/}
+              {/*      <option value="POSITIVE">Tích cực (Positive)</option>*/}
+              {/*      <option value="NEUTRAL">Trung tính (Neutral)</option>*/}
+              {/*      <option value="NEGATIVE">Tiêu cực (Negative)</option>*/}
+              {/*    </select>*/}
+              {/*    <button*/}
+              {/*      type="button"*/}
+              {/*      onClick={handleAddAspectSentiment}*/}
+              {/*      disabled={!newAspect.trim()}*/}
+              {/*      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"*/}
+              {/*    >*/}
+              {/*      <Plus className="w-4 h-4" />*/}
+              {/*      <span>Gán nhãn</span>*/}
+              {/*    </button>*/}
+              {/*  </div>*/}
+              {/*</div>*/}
             </div>
 
             {/* Footer Modal */}
