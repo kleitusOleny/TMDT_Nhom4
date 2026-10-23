@@ -571,7 +571,7 @@ function ServiceListContent() {
             {/* Tag Tìm kiếm */}
             {search.trim() && (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-blue-200 rounded-full text-xs font-semibold text-slate-700 shadow-xs">
-                <span>Từ khóa: "{search.trim()}"</span>
+                <span>Từ khóa: &quot;{search.trim()}&quot;</span>
                 <button
                   onClick={() => {
                     setSearch("");

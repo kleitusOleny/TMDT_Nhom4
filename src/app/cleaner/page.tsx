@@ -235,7 +235,7 @@ export default function CleanerPortalPage() {
     const options = selectedTask.service.pricingTable || [];
     const activeOpt = options.find((p) => p.id === selectedPricingOptionId) || options[0];
 
-    let base = selectedTask.service.priceStart || 150000;
+    const base = selectedTask.service.priceStart || 150000;
     let computed = 0;
 
     if (activeOpt) {

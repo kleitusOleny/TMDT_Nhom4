@@ -147,11 +147,11 @@ export default function AdminBookingsPage() {
       if (jsonUsr.success) setUsersList(jsonUsr.users || []);
       if (jsonCleaners.success) {
         setCleanersList(
-          (jsonCleaners.users || []).map((u: any) => ({
+          (jsonCleaners.users || []).map((u: { id: number; fullName?: string; phone?: string; email?: string | null }) => ({
             id: u.id,
-            fullName: u.fullName,
-            phone: u.phone,
-            email: u.email,
+            fullName: u.fullName || "",
+            phone: u.phone || "",
+            email: u.email || null,
           }))
         );
       }
