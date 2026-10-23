@@ -11,7 +11,7 @@ import {
   ShieldCheck,
   Building2,
   ArrowRight,
-  Info,
+  ShoppingBag,
   Loader2,
 } from "lucide-react";
 import Header from "@/src/components/Header";
@@ -30,35 +30,23 @@ interface CartItemModel {
   note?: string;
 }
 
-const fallbackCartItems: CartItemModel[] = [
-  {
-    id: "1",
-    serviceId: 1,
-    title: "Vệ sinh máy lạnh Inverter trọn gói",
-    priceStart: 250000,
-    image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=300&q=80",
-    shopName: "Điện lạnh An Khang",
-    quantity: 1,
-    scheduledDate: new Date(Date.now() + 86400000).toISOString().split("T")[0],
-    workingTime: "09:00",
-    note: "Vệ sinh dàn nóng và dàn lạnh",
-  },
-];
-
 export default function CartPage() {
   const [cartItems, setCartItems] = useState<CartItemModel[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Tải danh sách giỏ hàng từ API, nếu chưa có thì kiểm tra localStorage
+  // Tải danh sách giỏ hàng thực từ Database và localStorage (không mock)
   useEffect(() => {
     async function loadCart() {
       try {
         setLoading(true);
+        // 1. Tải từ API database người dùng
         const res = await fetch("/api/cart");
         const data = await res.json();
         if (data.success && Array.isArray(data.items) && data.items.length > 0) {
           setCartItems(data.items);
+          localStorage.setItem("cleanmate_cart", JSON.stringify(data.items));
         } else {
+          // 2. Nếu chưa có trên API (khách vãng lai), tải từ localStorage thực tế đã bấm "Thêm vào giỏ"
           const local = localStorage.getItem("cleanmate_cart");
           if (local) {
             try {
@@ -71,12 +59,22 @@ export default function CartPage() {
               // ignore
             }
           }
-          // Sử dụng mock mặc định để người dùng dễ trải nghiệm
-          setCartItems(fallbackCartItems);
+          // Hoàn toàn không mock: nếu không có thì giỏ trống
+          setCartItems([]);
         }
       } catch (err) {
         console.error("Lỗi tải giỏ hàng:", err);
-        setCartItems(fallbackCartItems);
+        const local = localStorage.getItem("cleanmate_cart");
+        if (local) {
+          try {
+            const parsed = JSON.parse(local);
+            if (Array.isArray(parsed)) {
+              setCartItems(parsed);
+              return;
+            }
+          } catch {}
+        }
+        setCartItems([]);
       } finally {
         setLoading(false);
       }
@@ -84,12 +82,12 @@ export default function CartPage() {
     loadCart();
   }, []);
 
-  // Hàm định dạng tiền tệ
+  // Định dạng tiền tệ
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat("vi-VN").format(val) + "đ";
   };
 
-  // Tính tổng tiền
+  // Tính tổng tiền thực
   const totalAmount = cartItems.reduce(
     (acc, item) => acc + (item.priceStart || 0) * (item.quantity || 1),
     0
@@ -100,7 +98,6 @@ export default function CartPage() {
     setCartItems(updated);
     localStorage.setItem("cleanmate_cart", JSON.stringify(updated));
 
-    // Gọi API xóa nếu là id số trong database
     if (typeof id === "number" || !isNaN(Number(id))) {
       try {
         await fetch(`/api/cart?itemId=${id}`, { method: "DELETE" });
@@ -123,11 +120,11 @@ export default function CartPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/50 text-slate-900 font-sans flex flex-col">
+    <div className="min-h-screen bg-white text-slate-900 font-sans flex flex-col">
       <Header currentPath="/cart" showSearchOrBooking={false} />
 
       {/* BREADCRUMB */}
-      <div className="bg-white border-b border-slate-200/60 py-3.5">
+      <div className="bg-slate-50 border-b border-slate-200/80 py-3.5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center text-xs text-slate-500">
           <Link href="/" className="hover:text-blue-600 transition">
             Trang chủ
@@ -137,43 +134,43 @@ export default function CartPage() {
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full flex-1">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full flex-1 bg-white">
         <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-8">
           Giỏ hàng dịch vụ
         </h1>
 
         {loading ? (
-          <div className="py-20 text-center flex flex-col items-center justify-center">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-2" />
-            <span className="text-sm text-slate-500">Đang tải giỏ hàng...</span>
+          <div className="py-24 text-center flex flex-col items-center justify-center">
+            <Loader2 className="w-9 h-9 animate-spin text-blue-600 mb-3" />
+            <span className="text-sm font-medium text-slate-500">Đang kiểm tra giỏ hàng...</span>
           </div>
         ) : cartItems.length === 0 ? (
-          <div className="bg-white rounded-3xl border border-slate-200/80 p-16 text-center shadow-sm">
-            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Info className="w-10 h-10 text-slate-300" />
+          <div className="bg-white rounded-3xl border-2 border-dashed border-slate-200 p-16 text-center">
+            <div className="w-20 h-20 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
+              <ShoppingBag className="w-10 h-10" />
             </div>
-            <h2 className="text-xl font-bold text-slate-800 mb-2">Giỏ hàng đang trống</h2>
-            <p className="text-slate-500 mb-8 max-w-md mx-auto">
-              Bạn chưa chọn dịch vụ nào. Hãy khám phá các gói vệ sinh chất lượng từ đối tác của chúng tôi nhé.
+            <h2 className="text-xl font-bold text-slate-900 mb-2">Giỏ hàng đang trống</h2>
+            <p className="text-slate-500 mb-8 max-w-md mx-auto text-sm">
+              Bạn chưa có dịch vụ nào trong giỏ hàng. Hãy khám phá và đặt lịch các gói vệ sinh uy tín từ đối tác của CleanMate.
             </p>
             <Link
               href="/dichvu"
-              className="inline-flex items-center gap-2 px-8 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition shadow-lg shadow-blue-500/30"
+              className="inline-flex items-center gap-2 px-8 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition shadow-lg shadow-blue-500/30 text-sm"
             >
               Xem danh sách dịch vụ <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* CỘT TRÁI: DANH SÁCH SẢN PHẨM TRONG GIỎ */}
+            {/* CỘT TRÁI: DANH SÁCH DỊCH VỤ THỰC TẾ (8 CỘT) */}
             <div className="lg:col-span-8 space-y-4">
               {cartItems.map((item) => (
                 <div
                   key={item.id}
-                  className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 flex flex-col sm:flex-row gap-5 shadow-sm hover:border-blue-200 transition"
+                  className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 flex flex-col sm:flex-row gap-5 shadow-xs hover:border-blue-300 transition"
                 >
                   {/* Ảnh dịch vụ */}
-                  <div className="relative w-full sm:w-32 h-32 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-100">
+                  <div className="relative w-full sm:w-36 h-36 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-100">
                     <Image
                       src={item.image || "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=300&q=80"}
                       alt={item.title}
@@ -202,23 +199,23 @@ export default function CartPage() {
                         </button>
                       </div>
 
-                      <div className="flex items-center gap-1.5 text-xs text-blue-600 font-semibold bg-blue-50 w-fit px-2 py-1 rounded-md mb-4">
+                      <div className="flex items-center gap-1.5 text-xs text-blue-600 font-semibold bg-blue-50 w-fit px-2.5 py-1 rounded-md mb-4">
                         <Building2 className="w-3.5 h-3.5" />
                         {item.shopName}
                       </div>
 
-                      {/* Các thông tin đặt lịch cơ bản */}
+                      {/* Các thông tin đặt lịch */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                         <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-600">
-                          <Calendar className="w-4 h-4 text-slate-400" />
+                          <Calendar className="w-4 h-4 text-blue-500" />
                           <span>
-                            Ngày: <strong>{item.scheduledDate || "Linh hoạt"}</strong>
+                            Ngày hẹn: <strong>{item.scheduledDate || "Chưa ấn định"}</strong>
                           </span>
                         </div>
                         <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-600">
-                          <Clock className="w-4 h-4 text-slate-400" />
+                          <Clock className="w-4 h-4 text-blue-500" />
                           <span>
-                            Giờ: <strong>{item.workingTime || "09:00"}</strong>
+                            Giờ hẹn: <strong>{item.workingTime || "09:00"}</strong>
                           </span>
                         </div>
                       </div>
@@ -226,6 +223,7 @@ export default function CartPage() {
 
                     <div className="flex items-center justify-between pt-4 border-t border-slate-100">
                       <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-500 mr-1">Số lượng:</span>
                         <button
                           type="button"
                           onClick={() => updateQuantity(item.id, -1)}
@@ -255,11 +253,11 @@ export default function CartPage() {
               ))}
             </div>
 
-            {/* CỘT PHẢI: TỔNG KẾT & THANH TOÁN (STICKY) */}
+            {/* CỘT PHẢI: TỔNG KẾT & TIẾN HÀNH ĐẶT LỊCH (4 CỘT) */}
             <div className="lg:col-span-4 sticky top-28">
-              <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-sm">
+              <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
                 <h2 className="text-lg font-bold text-slate-900 mb-5 pb-4 border-b border-slate-100">
-                  Tổng đơn hàng
+                  Tổng đơn dịch vụ
                 </h2>
 
                 <div className="space-y-4 mb-6 text-sm">
@@ -268,7 +266,7 @@ export default function CartPage() {
                     <span className="font-semibold text-slate-900">{formatCurrency(totalAmount)}</span>
                   </div>
                   <div className="flex justify-between text-slate-600">
-                    <span>Phí nền tảng</span>
+                    <span>Phí dịch vụ sàn</span>
                     <span className="font-semibold text-emerald-600">Miễn phí</span>
                   </div>
                 </div>
