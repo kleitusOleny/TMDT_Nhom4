@@ -70,6 +70,8 @@ export default function LoginPage() {
       setTimeout(() => {
         if (data?.user?.role === "ADMIN" || data?.user?.role === "PROVIDER") {
           router.push("/admin");
+        } else if (data?.user?.role === "CLEANER") {
+          router.push("/profile?tab=tasks");
         } else {
           router.push("/");
         }
