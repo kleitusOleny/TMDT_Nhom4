@@ -638,32 +638,25 @@ export default function AdminReviewsPage() {
                   {selectedReview.aspectSentiments.map((asp, idx) => (
                     <div
                       key={idx}
-                      className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs space-y-1.5"
+                      className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
-                          <Tag className="w-3.5 h-3.5 text-indigo-600" />
-                          <span>{asp.aspect}</span>
-                        </div>
-                        <span
-                          className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
-                            asp.sentiment === "POSITIVE"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : asp.sentiment === "NEGATIVE"
-                              ? "bg-rose-100 text-rose-800"
-                              : "bg-slate-100 text-slate-700"
-                          }`}
-                        >
-                          {asp.sentiment === "POSITIVE" && "TÍCH CỰC"}
-                          {asp.sentiment === "NEGATIVE" && "TIÊU CỰC"}
-                          {asp.sentiment === "NEUTRAL" && "TRUNG TÍNH"}
-                        </span>
+                      <div className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                        <Tag className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>{asp.aspect}</span>
                       </div>
-                      {asp.highlightText && (
-                        <p className="text-[11px] text-slate-500 italic bg-slate-50 p-1.5 rounded-md">
-                          &quot;{asp.highlightText}&quot;
-                        </p>
-                      )}
+                      <span
+                        className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
+                          asp.sentiment === "POSITIVE"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : asp.sentiment === "NEGATIVE"
+                            ? "bg-rose-100 text-rose-800"
+                            : "bg-slate-100 text-slate-700"
+                        }`}
+                      >
+                        {asp.sentiment === "POSITIVE" && "TÍCH CỰC"}
+                        {asp.sentiment === "NEGATIVE" && "TIÊU CỰC"}
+                        {asp.sentiment === "NEUTRAL" && "TRUNG TÍNH"}
+                      </span>
                     </div>
                   ))}
                 </div>
