@@ -36,6 +36,11 @@ import {
   Filter,
   ArrowUpDown,
   Navigation,
+  X,
+  CreditCard,
+  FileText,
+  UserCheck,
+  CheckCircle,
 } from "lucide-react";
 
 interface AddressItem {
@@ -111,14 +116,33 @@ export default function ProfilePage() {
     serviceId: number;
     serviceTitle: string;
     serviceImage: string;
+    serviceDuration?: string;
+    categoryName?: string;
+    shopId?: number;
     shopName: string;
+    shopPhone?: string;
+    shopAddress?: string;
+    cleaner?: {
+      id: number;
+      fullName: string;
+      phone: string;
+      email?: string | null;
+      avatar?: string | null;
+    } | null;
     scheduledDate: string;
     address: string;
     note: string | null;
     totalPrice: number;
     status: string;
+    cancellationReason?: string | null;
+    beforeImages?: string[];
+    afterImages?: string[];
+    isAcceptedByCustomer?: boolean;
     paymentStatus: string;
     paymentMethod: string;
+    paymentAmount?: number;
+    tipAmount?: number;
+    transactionId?: string | null;
     createdAt: string;
     hasReviewed: boolean;
     rating: number | null;
@@ -126,6 +150,7 @@ export default function ProfilePage() {
   }
   const [bookings, setBookings] = useState<BookingHistoryItem[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
+  const [selectedOrderDetail, setSelectedOrderDetail] = useState<BookingHistoryItem | null>(null);
 
   // States lọc và sắp xếp lịch sử đơn hàng
   const [orderSearchQuery, setOrderSearchQuery] = useState("");
@@ -1097,7 +1122,8 @@ export default function ProfilePage() {
                   {filteredBookings.map((b) => (
                     <div
                       key={b.id}
-                      className="p-5 rounded-2xl border border-slate-200/80 bg-slate-50/50 hover:bg-white hover:border-slate-300 hover:shadow-xs transition space-y-4"
+                      onClick={() => setSelectedOrderDetail(b)}
+                      className="p-5 rounded-2xl border border-slate-200/80 bg-slate-50/50 hover:bg-white hover:border-blue-300 hover:shadow-md transition space-y-4 cursor-pointer relative group"
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-slate-100">
                         <div className="flex items-center gap-2">
@@ -1136,6 +1162,17 @@ export default function ProfilePage() {
                           >
                             {(b.paymentStatus === "PAID" || b.paymentStatus === "COMPLETED") ? "Đã thanh toán" : "Chưa thanh toán"}
                           </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedOrderDetail(b);
+                            }}
+                            className="text-xs font-bold text-blue-600 group-hover:text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200 flex items-center gap-1 shrink-0 ml-1"
+                          >
+                            <span>Chi tiết</span>
+                            <ChevronRight className="w-3 h-3" />
+                          </button>
                         </div>
                       </div>
 
@@ -1155,13 +1192,9 @@ export default function ProfilePage() {
                             )}
                           </div>
                           <div>
-                            <Link
-                              href={`/dichvu/${b.serviceId}`}
-                              className="font-bold text-sm text-slate-900 hover:text-blue-600 transition flex items-center gap-1 group line-clamp-1"
-                            >
+                            <div className="font-bold text-sm text-slate-900 group-hover:text-blue-600 transition flex items-center gap-1 line-clamp-1">
                               <span>{b.serviceTitle}</span>
-                              <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600 opacity-0 group-hover:opacity-100 transition" />
-                            </Link>
+                            </div>
                             <p className="text-xs text-slate-500 mt-0.5">
                               Gian hàng: <strong className="text-slate-700 font-semibold">{b.shopName}</strong>
                             </p>
@@ -1196,7 +1229,7 @@ export default function ProfilePage() {
                           </div>
                           <div className="grow">
                             <span className="font-bold text-amber-800">Đánh giá của bạn: </span>
-                            <span className="italic">"{b.reviewComment || "Rất hài lòng với chất lượng dịch vụ"}"</span>
+                            <span className="italic">&quot;{b.reviewComment || "Rất hài lòng với chất lượng dịch vụ"}&quot;</span>
                           </div>
                         </div>
                       )}
@@ -1729,6 +1762,264 @@ export default function ProfilePage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CHI TIẾT ĐƠN HÀNG DÀNH CHO NGƯỜI DÙNG */}
+      {selectedOrderDetail && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative animate-in fade-in zoom-in duration-150 max-h-[92vh] overflow-y-auto">
+            {/* Header Modal */}
+            <div className="flex items-start justify-between pb-4 border-b border-slate-100">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-sm font-black text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100">
+                    {selectedOrderDetail.bookingCode}
+                  </span>
+                  <span
+                    className={`text-xs font-bold px-3 py-1 rounded-full ${
+                      selectedOrderDetail.status === "COMPLETED"
+                        ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                        : selectedOrderDetail.status === "CONFIRMED"
+                        ? "bg-blue-100 text-blue-800 border border-blue-200"
+                        : selectedOrderDetail.status === "CANCELLED"
+                        ? "bg-rose-100 text-rose-800 border border-rose-200"
+                        : "bg-amber-100 text-amber-800 border border-amber-200"
+                    }`}
+                  >
+                    {selectedOrderDetail.status === "PENDING" && "Chờ xác nhận"}
+                    {selectedOrderDetail.status === "CONFIRMED" && "Đã xác nhận"}
+                    {selectedOrderDetail.status === "IN_PROGRESS" && "Đang thực hiện"}
+                    {selectedOrderDetail.status === "COMPLETED" && "Hoàn thành"}
+                    {selectedOrderDetail.status === "CANCELLED" && "Đã hủy"}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-slate-400" />
+                  Đặt lúc: {formatDateTimeVN(selectedOrderDetail.createdAt)}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedOrderDetail(null)}
+                className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Nội dung chi tiết */}
+            <div className="space-y-6 pt-5">
+              {/* Thông tin dịch vụ & Gian hàng */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 flex gap-4 items-center">
+                <div className="w-20 h-20 rounded-2xl bg-slate-200 overflow-hidden shrink-0 border border-slate-200 shadow-2xs">
+                  {selectedOrderDetail.serviceImage ? (
+                    <img
+                      src={selectedOrderDetail.serviceImage}
+                      alt={selectedOrderDetail.serviceTitle}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-slate-100 text-slate-400">
+                      <ShoppingBag className="w-8 h-8" />
+                    </div>
+                  )}
+                </div>
+                <div className="grow">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
+                      {selectedOrderDetail.categoryName || "Dịch vụ"}
+                    </span>
+                    {selectedOrderDetail.serviceDuration && (
+                      <span className="text-xs text-slate-400">• Thời lượng: {selectedOrderDetail.serviceDuration}</span>
+                    )}
+                  </div>
+                  <h4 className="font-extrabold text-slate-900 text-base mt-1 line-clamp-1">
+                    {selectedOrderDetail.serviceTitle}
+                  </h4>
+                  <p className="text-xs text-slate-600 mt-1">
+                    Gian hàng: <strong className="text-slate-800">{selectedOrderDetail.shopName}</strong>
+                    {selectedOrderDetail.shopPhone && ` • Hotline: ${selectedOrderDetail.shopPhone}`}
+                  </p>
+                  <Link
+                    href={`/dichvu/${selectedOrderDetail.serviceId}`}
+                    className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 mt-1.5"
+                  >
+                    <span>Xem trang dịch vụ</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </Link>
+                </div>
+              </div>
+
+              {/* Lịch làm việc & Địa chỉ nhận dịch vụ */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-4 rounded-2xl border border-slate-200 bg-white space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    <Calendar className="w-4 h-4 text-blue-600" />
+                    <span>Lịch hẹn dọn dẹp</span>
+                  </div>
+                  <div className="font-bold text-sm text-slate-900">
+                    {formatDateVN(selectedOrderDetail.scheduledDate)}
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Giờ dự kiến: {new Date(selectedOrderDetail.scheduledDate).getHours().toString().padStart(2, "0")}:{new Date(selectedOrderDetail.scheduledDate).getMinutes().toString().padStart(2, "0")}
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl border border-slate-200 bg-white space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    <MapPin className="w-4 h-4 text-rose-600" />
+                    <span>Địa chỉ thực hiện</span>
+                  </div>
+                  <div className="font-bold text-sm text-slate-900 line-clamp-2">
+                    {selectedOrderDetail.address}
+                  </div>
+                </div>
+              </div>
+
+              {/* Nhân viên dọn dẹp (Cleaner) nếu đã được gán */}
+              {selectedOrderDetail.cleaner && (
+                <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-100 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-base shadow-sm">
+                      {selectedOrderDetail.cleaner.fullName.charAt(0)}
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-bold text-indigo-700 uppercase tracking-wider flex items-center gap-1">
+                        <UserCheck className="w-3.5 h-3.5" />
+                        <span>Nhân viên phụ trách</span>
+                      </div>
+                      <div className="font-bold text-slate-900 text-sm">{selectedOrderDetail.cleaner.fullName}</div>
+                      <div className="text-xs text-slate-600 mt-0.5 flex items-center gap-2 font-mono">
+                        <span>SĐT: {selectedOrderDetail.cleaner.phone}</span>
+                        {selectedOrderDetail.cleaner.email && (
+                          <span className="hidden sm:inline text-slate-400">• {selectedOrderDetail.cleaner.email}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <a
+                    href={`tel:${selectedOrderDetail.cleaner.phone}`}
+                    className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5 shrink-0"
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    <span>Gọi thợ</span>
+                  </a>
+                </div>
+              )}
+
+              {/* Ghi chú hoặc yêu cầu đặc biệt của khách hàng / Thợ */}
+              {selectedOrderDetail.note && (
+                <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 text-xs">
+                  <div className="flex items-center gap-1.5 font-bold text-amber-900 mb-1">
+                    <FileText className="w-4 h-4 text-amber-600" />
+                    <span>Ghi chú đơn hàng & Thỏa thuận:</span>
+                  </div>
+                  <p className="text-slate-700 whitespace-pre-line leading-relaxed">
+                    {selectedOrderDetail.note}
+                  </p>
+                </div>
+              )}
+
+              {/* Ảnh nghiệm thu (Trước & Sau khi dọn dẹp) */}
+              {((selectedOrderDetail.beforeImages && selectedOrderDetail.beforeImages.length > 0) ||
+                (selectedOrderDetail.afterImages && selectedOrderDetail.afterImages.length > 0)) && (
+                <div className="space-y-4 p-4 rounded-2xl border border-slate-200 bg-slate-50/40">
+                  <div className="font-bold text-xs uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                    <CheckCircle className="w-4 h-4 text-teal-600" />
+                    <span>Hình ảnh hiện trạng & Nghiệm thu</span>
+                  </div>
+
+                  {selectedOrderDetail.beforeImages && selectedOrderDetail.beforeImages.length > 0 && (
+                    <div>
+                      <div className="text-[11px] font-bold text-slate-500 mb-2">Ảnh trước khi dọn:</div>
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                        {selectedOrderDetail.beforeImages.map((img, idx) => (
+                          <a key={idx} href={img} target="_blank" rel="noreferrer" className="block aspect-square rounded-xl overflow-hidden border border-slate-200 hover:opacity-90">
+                            <img src={img} alt={`Before ${idx + 1}`} className="w-full h-full object-cover" />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedOrderDetail.afterImages && selectedOrderDetail.afterImages.length > 0 && (
+                    <div>
+                      <div className="text-[11px] font-bold text-teal-700 mb-2">Ảnh sau khi dọn (Đã hoàn tất):</div>
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                        {selectedOrderDetail.afterImages.map((img, idx) => (
+                          <a key={idx} href={img} target="_blank" rel="noreferrer" className="block aspect-square rounded-xl overflow-hidden border border-teal-200 hover:opacity-90">
+                            <img src={img} alt={`After ${idx + 1}`} className="w-full h-full object-cover" />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Thông tin thanh toán */}
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-50 to-blue-50/40 border border-slate-200 space-y-3">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-700 uppercase tracking-wider border-b border-slate-200/60 pb-2">
+                  <div className="flex items-center gap-1.5">
+                    <CreditCard className="w-4 h-4 text-blue-600" />
+                    <span>Chi tiết thanh toán</span>
+                  </div>
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                      selectedOrderDetail.paymentStatus === "PAID" || selectedOrderDetail.paymentStatus === "COMPLETED"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-slate-200 text-slate-700"
+                    }`}
+                  >
+                    {selectedOrderDetail.paymentStatus === "PAID" || selectedOrderDetail.paymentStatus === "COMPLETED"
+                      ? "Đã thanh toán"
+                      : "Chưa thanh toán"}
+                  </span>
+                </div>
+
+                <div className="space-y-1.5 text-xs text-slate-600">
+                  <div className="flex justify-between">
+                    <span>Phương thức:</span>
+                    <strong className="text-slate-800 font-semibold">{selectedOrderDetail.paymentMethod}</strong>
+                  </div>
+                  {selectedOrderDetail.transactionId && (
+                    <div className="flex justify-between">
+                      <span>Mã giao dịch:</span>
+                      <span className="font-mono text-slate-800 font-semibold">{selectedOrderDetail.transactionId}</span>
+                    </div>
+                  )}
+                  {Number(selectedOrderDetail.tipAmount || 0) > 0 && (
+                    <div className="flex justify-between text-amber-700">
+                      <span>Tiền boa (Tip):</span>
+                      <span>+{Number(selectedOrderDetail.tipAmount).toLocaleString()}đ</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-sm">
+                    <span className="font-bold text-slate-900">Tổng thanh toán:</span>
+                    <span className="font-black text-blue-600 text-lg">
+                      {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
+                        selectedOrderDetail.totalPrice
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer Modal */}
+            <div className="pt-6 mt-6 border-t border-slate-100 flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => setSelectedOrderDetail(null)}
+                className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-sm transition cursor-pointer"
+              >
+                Đóng
+              </button>
+            </div>
           </div>
         </div>
       )}

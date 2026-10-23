@@ -42,10 +42,18 @@ export async function GET(req: NextRequest) {
             title: true,
             images: true,
             duration: true,
+            priceStart: true,
             shop: {
+              select: { id: true, name: true, phone: true, area: true, address: true },
+            },
+            categories: {
               select: { id: true, name: true },
+              take: 1,
             },
           },
+        },
+        cleaner: {
+          select: { id: true, fullName: true, phone: true, email: true, avatar: true },
         },
         payment: true,
         review: true,
@@ -65,20 +73,53 @@ export async function GET(req: NextRequest) {
         serviceImg = "";
       }
 
+      const beforeImgs = Array.isArray(b.beforeImages)
+        ? (b.beforeImages as string[])
+        : typeof b.beforeImages === "string"
+        ? [b.beforeImages]
+        : [];
+
+      const afterImgs = Array.isArray(b.afterImages)
+        ? (b.afterImages as string[])
+        : typeof b.afterImages === "string"
+        ? [b.afterImages]
+        : [];
+
       return {
         id: b.id,
         bookingCode: b.bookingCode,
         serviceId: b.service.id,
         serviceTitle: b.service.title,
         serviceImage: serviceImg,
+        serviceDuration: b.service.duration,
+        categoryName: b.service.categories[0]?.name || "Vệ sinh",
+        shopId: b.service.shop?.id,
         shopName: b.service.shop?.name || "Đối tác CleanMate",
+        shopPhone: b.service.shop?.phone,
+        shopAddress: b.service.shop?.address,
+        cleaner: b.cleaner
+          ? {
+              id: b.cleaner.id,
+              fullName: b.cleaner.fullName || "Nhân viên dọn dẹp",
+              phone: b.cleaner.phone || "---",
+              email: b.cleaner.email,
+              avatar: b.cleaner.avatar,
+            }
+          : null,
         scheduledDate: b.scheduledDate.toISOString(),
         address: b.address,
         note: b.note,
         totalPrice: Number(b.totalPrice),
         status: b.status,
+        cancellationReason: b.cancellationReason,
+        beforeImages: beforeImgs,
+        afterImages: afterImgs,
+        isAcceptedByCustomer: b.isAcceptedByCustomer,
         paymentStatus: b.payment?.status || "PENDING",
         paymentMethod: b.payment?.method || "CASH",
+        paymentAmount: Number(b.payment?.amount || b.totalPrice),
+        tipAmount: Number(b.payment?.tipAmount || 0),
+        transactionId: b.payment?.transactionId,
         createdAt: b.createdAt.toISOString(),
         hasReviewed: Boolean(b.review),
         rating: b.review?.rating || null,
