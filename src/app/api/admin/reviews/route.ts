@@ -54,6 +54,15 @@ export async function GET(req: NextRequest) {
             bookingCode: true,
             scheduledDate: true,
             totalPrice: true,
+            cleaner: {
+              select: {
+                id: true,
+                fullName: true,
+                phone: true,
+                email: true,
+                image: true,
+              },
+            },
           },
         },
       },
@@ -97,6 +106,15 @@ export async function GET(req: NextRequest) {
           bookingCode: r.booking.bookingCode,
           scheduledDate: r.booking.scheduledDate.toISOString(),
           totalPrice: Number(r.booking.totalPrice),
+          cleaner: r.booking.cleaner
+            ? {
+                id: r.booking.cleaner.id,
+                fullName: r.booking.cleaner.fullName || "Nhân viên làm sạch",
+                phone: r.booking.cleaner.phone,
+                email: r.booking.cleaner.email,
+                image: r.booking.cleaner.image,
+              }
+            : null,
         },
         // Phân loại cảm xúc theo khía cạnh (Aspect-Based Sentiment Analysis)
         // Tạm thời để trống theo yêu cầu người dùng, cho phép tích hợp AI/Aspect model

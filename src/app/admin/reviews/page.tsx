@@ -18,6 +18,7 @@ import {
   Smile,
   Frown,
   Tag,
+  UserCheck,
 } from "lucide-react";
 import { formatDateTimeVN } from "@/src/lib/date-utils";
 
@@ -53,6 +54,13 @@ export interface ReviewAdminItem {
     bookingCode: string;
     scheduledDate: string;
     totalPrice: number;
+    cleaner?: {
+      id: number;
+      fullName: string;
+      phone: string;
+      email: string | null;
+      image: string | null;
+    } | null;
   };
   aspectSentiments: AspectSentimentItem[];
 }
@@ -557,6 +565,30 @@ export default function AdminReviewsPage() {
                 <div className="text-[11px] text-slate-400 font-mono mt-0.5">
                   Mã đơn liên kết: #{selectedReview.booking.bookingCode} • Giá trị:{" "}
                   {selectedReview.booking.totalPrice.toLocaleString()}đ
+                </div>
+
+                {/* Người thực hiện đơn hàng (Cleaner / Thợ) */}
+                <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 text-xs text-slate-500 font-semibold">
+                    <UserCheck className="w-4 h-4 text-emerald-600" />
+                    <span>Người thực hiện:</span>
+                  </div>
+                  {selectedReview.booking.cleaner ? (
+                    <div className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200/60 px-2.5 py-0.5 rounded-lg">
+                      <span className="font-bold text-xs text-emerald-800">
+                        {selectedReview.booking.cleaner.fullName}
+                      </span>
+                      {selectedReview.booking.cleaner.phone && (
+                        <span className="text-[11px] text-emerald-600 font-mono">
+                          ({selectedReview.booking.cleaner.phone})
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-400 italic">
+                      Chưa chỉ định nhân viên thực hiện
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
