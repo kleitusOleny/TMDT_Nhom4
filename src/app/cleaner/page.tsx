@@ -33,8 +33,21 @@ import {
   UploadCloud,
   ChevronRight,
   Layers,
+  Calculator,
+  PlusCircle,
+  Tag,
+  DollarSign,
+  Maximize2,
 } from "lucide-react";
 import { formatDateVN, formatDateTimeVN } from "@/src/lib/date-utils";
+
+interface PricingOption {
+  id: string;
+  title: string;
+  sub: string;
+  price: number;
+  unit: string;
+}
 
 interface CleanerTask {
   id: number;
@@ -55,6 +68,8 @@ interface CleanerTask {
     title: string;
     image: string;
     shopName: string;
+    priceStart: number;
+    pricingTable: PricingOption[];
   };
   payment: {
     status: string;
@@ -78,26 +93,32 @@ interface Stats {
 export default function CleanerPortalPage() {
   const router = useRouter();
 
-  // Tab Sidebar chính: "list" (Nhận đơn / Danh sách) | "detail" (Chi tiết công việc & Báo cáo tiến độ)
   const [activeSidebar, setActiveSidebar] = useState<"list" | "progress" | "history">("list");
   
-  // Trạng thái lọc danh sách
   const [currentTab, setCurrentTab] = useState<"NEW" | "ACCEPTED" | "IN_PROGRESS" | "COMPLETED">("NEW");
   const [tasks, setTasks] = useState<CleanerTask[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Xem chi tiết một đơn cụ thể (khi nhấn vào nút Xem chi tiết đơn)
+  // Xem chi tiết một đơn cụ thể
   const [selectedTask, setSelectedTask] = useState<CleanerTask | null>(null);
 
   // States trong form cập nhật tiến độ trực tuyến
   const [nextStepStatus, setNextStepStatus] = useState<string>("COMPLETED");
   const [reportNote, setReportNote] = useState("");
-  const [beforeImageInput, setBeforeImageInput] = useState("");
-  const [afterImageInput, setAfterImageInput] = useState("");
   const [beforeImages, setBeforeImages] = useState<string[]>([]);
   const [afterImages, setAfterImages] = useState<string[]>([]);
   const [isUpdatingProgress, setIsUpdatingProgress] = useState(false);
+
+  // CÁC STATES ĐIỀU CHỈNH GÓI & TÍNH LẠI GIÁ (DIỆN TÍCH M2, SỐ GIỜ, OPTION PHỤ)
+  const [selectedPricingOptionId, setSelectedPricingOptionId] = useState<string>("");
+  const [pricingUnitType, setPricingUnitType] = useState<"sqm" | "hour" | "fixed">("sqm");
+  const [workAreaSqm, setWorkAreaSqm] = useState<number>(50); // Số m2
+  const [workHours, setWorkHours] = useState<number>(3); // Số giờ
+  const [surchargeAmount, setSurchargeAmount] = useState<number>(0); // Phụ phí phát sinh
+  const [surchargeReason, setSurchargeReason] = useState<string>(""); // Lý do phụ phí
+  const [calculatedPrice, setCalculatedPrice] = useState<number>(0); // Tổng giá tính lại
+  const [isPriceCustomized, setIsPriceCustomized] = useState<boolean>(false);
 
   // User Profile
   const [userProfile, setUserProfile] = useState<{
@@ -178,8 +199,27 @@ export default function CleanerPortalPage() {
     setReportNote(task.note || "");
     setBeforeImages(task.beforeImages || []);
     setAfterImages(task.afterImages || []);
+    setCalculatedPrice(task.totalPrice);
+    setIsPriceCustomized(false);
+    setSurchargeAmount(0);
+    setSurchargeReason("");
 
-    // Gợi ý bước kế tiếp tương ứng trạng thái hiện tại
+    // Khởi tạo gói option tương ứng dịch vụ
+    const options = task.service.pricingTable || [];
+    if (options.length > 0) {
+      setSelectedPricingOptionId(options[0].id);
+      if (options[0].unit.includes("m²") || options[0].unit.includes("m2")) {
+        setPricingUnitType("sqm");
+      } else if (options[0].unit.includes("giờ") || options[0].unit.includes("h")) {
+        setPricingUnitType("hour");
+      } else {
+        setPricingUnitType("fixed");
+      }
+    } else {
+      setSelectedPricingOptionId("");
+      setPricingUnitType("sqm");
+    }
+
     if (task.status === "PENDING") {
       setNextStepStatus("CONFIRMED");
     } else if (task.status === "CONFIRMED") {
@@ -189,34 +229,84 @@ export default function CleanerPortalPage() {
     }
   };
 
+  // Tự động tính toán lại đơn giá khi thay đổi option, số m2, số giờ, hoặc phụ phí
+  useEffect(() => {
+    if (!selectedTask) return;
+    const options = selectedTask.service.pricingTable || [];
+    const activeOpt = options.find((p) => p.id === selectedPricingOptionId) || options[0];
+
+    let base = selectedTask.service.priceStart || 150000;
+    let computed = 0;
+
+    if (activeOpt) {
+      if (activeOpt.unit.includes("m²") || activeOpt.unit.includes("m2") || pricingUnitType === "sqm") {
+        computed = activeOpt.price * Number(workAreaSqm || 1);
+      } else if (activeOpt.unit.includes("giờ") || activeOpt.unit.includes("h") || pricingUnitType === "hour") {
+        computed = activeOpt.price * Number(workHours || 1);
+      } else {
+        computed = activeOpt.price;
+      }
+    } else {
+      if (pricingUnitType === "sqm") {
+        computed = 15000 * Number(workAreaSqm || 1);
+      } else if (pricingUnitType === "hour") {
+        computed = 120000 * Number(workHours || 1);
+      } else {
+        computed = base;
+      }
+    }
+
+    // Cộng thêm phụ phí yêu cầu phát sinh
+    const finalTotal = Math.max(0, computed + Number(surchargeAmount || 0));
+    setCalculatedPrice(finalTotal);
+  }, [selectedPricingOptionId, pricingUnitType, workAreaSqm, workHours, surchargeAmount, selectedTask]);
+
   const handleOpenDetail = (task: CleanerTask) => {
     initDetailForm(task);
     setActiveSidebar("progress");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Cập nhật tiến trình & Gửi thông báo (như trong ảnh mẫu)
+  // Cập nhật tiến trình, ghi chú, ảnh và giá điều chỉnh
   const handleSubmitProgressUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedTask) return;
 
     try {
       setIsUpdatingProgress(true);
+
+      // Nếu có điều chỉnh thêm gói/diện tích/phụ phí thì nối thêm vào ghi chú để cả khách hàng và sàn nắm rõ
+      let finalNote = reportNote.trim();
+      if (isPriceCustomized) {
+        const optionInfo = selectedTask.service.pricingTable?.find((p) => p.id === selectedPricingOptionId)?.title || "Theo thỏa thuận thực tế";
+        const customDetail = `[ĐIỀU CHỈNH GIÁ THỰC TẾ]: Gói: ${optionInfo} | Đơn vị: ${
+          pricingUnitType === "sqm" ? `${workAreaSqm} m²` : pricingUnitType === "hour" ? `${workHours} giờ` : "Trọn gói"
+        }${surchargeAmount > 0 ? ` | Phụ phí: +${surchargeAmount.toLocaleString()}đ (${surchargeReason || "Yêu cầu thêm"})` : ""} | Giá mới: ${calculatedPrice.toLocaleString()}đ.`;
+        
+        finalNote = finalNote ? `${finalNote}\n${customDetail}` : customDetail;
+      }
+
       const res = await fetch("/api/cleaner/tasks", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           bookingId: selectedTask.id,
           status: nextStepStatus,
-          note: reportNote.trim(),
+          note: finalNote,
           beforeImages,
           afterImages,
+          totalPrice: isPriceCustomized ? calculatedPrice : undefined,
         }),
       });
 
       const data = await res.json();
       if (res.ok && data.success) {
-        showToast("Cập nhật tiến trình & Gửi thông báo thành công!", "success");
+        showToast(
+          isPriceCustomized
+            ? "Đã tính lại giá và cập nhật tiến trình thành công!"
+            : "Cập nhật tiến trình & Gửi thông báo thành công!",
+          "success"
+        );
         await fetchTasks(selectedTask.id);
       } else {
         showToast(data.message || "Không thể cập nhật tiến độ", "error");
@@ -272,7 +362,6 @@ export default function CleanerPortalPage() {
   const countInProgress = tasks.filter((t) => t.status === "IN_PROGRESS").length;
   const countCompleted = tasks.filter((t) => t.status === "COMPLETED").length;
 
-  // Tính trạng thái timeline (1: Đã nhận đơn, 2: Đang di chuyển, 3: Bắt đầu dọn dẹp, 4: Đang tiến hành, 5: Hoàn tất & bàn giao)
   const getTimelineStep = (status: string) => {
     switch (status) {
       case "PENDING":
@@ -293,7 +382,6 @@ export default function CleanerPortalPage() {
       {/* 1. TOP NAVBAR HEADER TRÊN CÙNG CHUẨN GIAO DIỆN MẪU */}
       <header className="bg-white border-b border-slate-200/90 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          {/* Logo & Tag Đối tác */}
           <div className="flex items-center gap-3">
             <Link href="/" className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-xs">
@@ -308,7 +396,6 @@ export default function CleanerPortalPage() {
             </span>
           </div>
 
-          {/* Menu Điều hướng giữa Navbar */}
           <nav className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-600">
             <Link href="/" className="hover:text-blue-600 transition">
               Trang chủ
@@ -321,7 +408,6 @@ export default function CleanerPortalPage() {
             </Link>
           </nav>
 
-          {/* User Profile dropdown bên phải */}
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2.5 pl-2 border-l border-slate-100">
               <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold flex items-center justify-center text-xs overflow-hidden border-2 border-white shadow-xs">
@@ -370,7 +456,6 @@ export default function CleanerPortalPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* CỘT TRÁI: MENU SIDEBAR THEO ĐÚNG HÌNH MẪU (3 CỘT) */}
           <aside className="lg:col-span-3 space-y-2 bg-white rounded-2xl border border-slate-200/80 p-3 shadow-2xs">
-            {/* Mục 1: Tổng quan */}
             <Link
               href="/profile"
               className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition"
@@ -379,7 +464,6 @@ export default function CleanerPortalPage() {
               <span>Tổng quan</span>
             </Link>
 
-            {/* Mục 2: Nhận đơn */}
             <button
               type="button"
               onClick={() => {
@@ -403,7 +487,6 @@ export default function CleanerPortalPage() {
               )}
             </button>
 
-            {/* Mục 3: Tiến độ công việc (Active khi đang xem chi tiết đơn) */}
             <button
               type="button"
               onClick={() => {
@@ -432,13 +515,11 @@ export default function CleanerPortalPage() {
               )}
             </button>
 
-            {/* Mục 4: Nhân viên nội bộ */}
             <div className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 select-none">
               <Users className="w-4 h-4 text-slate-300" />
               <span>Nhân viên nội bộ</span>
             </div>
 
-            {/* Mục 5: Báo cáo doanh thu */}
             <button
               type="button"
               onClick={() => {
@@ -462,7 +543,6 @@ export default function CleanerPortalPage() {
               )}
             </button>
 
-            {/* Mục 6: Hỗ trợ & khiếu nại */}
             <Link
               href="/profile?tab=support"
               className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition"
@@ -486,7 +566,7 @@ export default function CleanerPortalPage() {
           {/* CỘT PHẢI: NỘI DUNG CHÍNH (9 CỘT) */}
           <section className="lg:col-span-9 space-y-6">
             {/* ============================================================== */}
-            {/* GIAO DIỆN A: CHI TIẾT CÔNG VIỆC & BÁO CÁO TIẾN ĐỘ (THEO MẪU ẢNH) */}
+            {/* GIAO DIỆN A: CHI TIẾT CÔNG VIỆC & BÁO CÁO TIẾN ĐỘ + ĐIỀU CHỈNH OPTION/GIÁ */}
             {/* ============================================================== */}
             {activeSidebar === "progress" && selectedTask ? (
               <div className="space-y-6 animate-in fade-in duration-200">
@@ -551,9 +631,16 @@ export default function CleanerPortalPage() {
                     </div>
                     <div className="text-right">
                       <div className="text-[11px] text-slate-400">Thanh toán nhận:</div>
-                      <div className="text-lg font-black text-blue-600">
-                        {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(selectedTask.totalPrice)}
+                      <div className="text-xl font-black text-blue-600">
+                        {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
+                          isPriceCustomized ? calculatedPrice : selectedTask.totalPrice
+                        )}
                       </div>
+                      {isPriceCustomized && (
+                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                          Đã tính lại theo thực tế
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -583,18 +670,204 @@ export default function CleanerPortalPage() {
                   </div>
 
                   {selectedTask.note && (
-                    <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200/50 text-xs text-amber-900">
-                      <strong>Ghi chú từ khách:</strong> {selectedTask.note}
+                    <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200/50 text-xs text-amber-900 whitespace-pre-line">
+                      <strong>Ghi chú:</strong> {selectedTask.note}
                     </div>
                   )}
                 </div>
 
-                {/* KHỐI 2: TIẾN TRÌNH THỰC HIỆN DỌN DẸP (STEPPER THEO ĐÚNG HÌNH ẢNH MẪU) */}
+                {/* KHỐI 2: ĐIỀU CHỈNH GÓI & TÍNH LẠI GIÁ (DIỆN TÍCH M2, SỐ GIỜ, OPTION PHÁT SINH) */}
+                <div className="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-2xs space-y-5">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                        <Calculator className="w-4.5 h-4.5" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-sm text-slate-900">
+                          Điều Chỉnh Diện Tích, Số Giờ & Tính Lại Giá (Theo yêu cầu chủ nhà)
+                        </h3>
+                        <p className="text-[11px] text-slate-500">
+                          Áp dụng khi khách yêu cầu dọn thêm phòng, tăng m², tăng giờ làm việc hoặc thêm dịch vụ
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Switch bật/tắt tính lại giá */}
+                    <button
+                      type="button"
+                      onClick={() => setIsPriceCustomized(!isPriceCustomized)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                        isPriceCustomized
+                          ? "bg-indigo-600 text-white shadow-xs"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      <PlusCircle className="w-3.5 h-3.5" />
+                      <span>{isPriceCustomized ? "Đang áp dụng giá mới" : "Chỉnh sửa diện tích / option"}</span>
+                    </button>
+                  </div>
+
+                  {isPriceCustomized && (
+                    <div className="space-y-4 pt-1 animate-in fade-in duration-200 text-xs">
+                      {/* Chọn gói dịch vụ có sẵn của shop */}
+                      {selectedTask.service.pricingTable && selectedTask.service.pricingTable.length > 0 && (
+                        <div>
+                          <label className="block font-bold text-slate-700 uppercase tracking-wider mb-2">
+                            1. Chọn gói option dịch vụ:
+                          </label>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                            {selectedTask.service.pricingTable.map((opt) => (
+                              <div
+                                key={opt.id}
+                                onClick={() => {
+                                  setSelectedPricingOptionId(opt.id);
+                                  if (opt.unit.includes("m²") || opt.unit.includes("m2")) {
+                                    setPricingUnitType("sqm");
+                                  } else if (opt.unit.includes("giờ") || opt.unit.includes("h")) {
+                                    setPricingUnitType("hour");
+                                  } else {
+                                    setPricingUnitType("fixed");
+                                  }
+                                }}
+                                className={`p-3 rounded-2xl border transition cursor-pointer text-left ${
+                                  selectedPricingOptionId === opt.id
+                                    ? "bg-blue-50/80 border-blue-500 shadow-2xs"
+                                    : "bg-slate-50/60 border-slate-200 hover:border-slate-300"
+                                }`}
+                              >
+                                <div className="font-bold text-slate-900">{opt.title}</div>
+                                <div className="text-[11px] text-slate-500">{opt.sub}</div>
+                                <div className="font-extrabold text-blue-600 mt-1">
+                                  {opt.price.toLocaleString()}đ {opt.unit}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Chọn cách tính và nhập số lượng (m2 hoặc giờ) */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                        {/* Hình thức tính */}
+                        <div>
+                          <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                            2. Cách tính phí:
+                          </label>
+                          <select
+                            value={pricingUnitType}
+                            onChange={(e) => setPricingUnitType(e.target.value as any)}
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-indigo-600 font-medium"
+                          >
+                            <option value="sqm">Theo diện tích (m²)</option>
+                            <option value="hour">Theo số giờ làm việc (Giờ)</option>
+                            <option value="fixed">Gói cố định / Theo căn</option>
+                          </select>
+                        </div>
+
+                        {/* Nhập số m2 hoặc số giờ */}
+                        {pricingUnitType === "sqm" && (
+                          <div>
+                            <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                              Diện tích thực tế (m²):
+                            </label>
+                            <div className="relative">
+                              <input
+                                type="number"
+                                min="1"
+                                max="1000"
+                                value={workAreaSqm}
+                                onChange={(e) => setWorkAreaSqm(Number(e.target.value))}
+                                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-indigo-600 font-bold"
+                              />
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium">m²</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {pricingUnitType === "hour" && (
+                          <div>
+                            <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                              Thời lượng làm việc (Giờ):
+                            </label>
+                            <div className="relative">
+                              <input
+                                type="number"
+                                min="1"
+                                max="24"
+                                step="0.5"
+                                value={workHours}
+                                onChange={(e) => setWorkHours(Number(e.target.value))}
+                                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-indigo-600 font-bold"
+                              />
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium">giờ</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Phụ phí yêu cầu thêm nếu có */}
+                        <div>
+                          <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                            Phụ phí phát sinh (+VNĐ):
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="10000"
+                            value={surchargeAmount}
+                            onChange={(e) => setSurchargeAmount(Number(e.target.value))}
+                            placeholder="0 đ"
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-indigo-600 font-bold"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Lý do phụ phí nếu có */}
+                      {surchargeAmount > 0 && (
+                        <div>
+                          <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
+                            Lý do phát sinh phụ phí:
+                          </label>
+                          <input
+                            type="text"
+                            value={surchargeReason}
+                            onChange={(e) => setSurchargeReason(e.target.value)}
+                            placeholder="Ví dụ: Giặt thêm thảm phòng khách, tẩy ố dầu mỡ nặng lò vi sóng..."
+                            className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-indigo-600"
+                          />
+                        </div>
+                      )}
+
+                      {/* Box tổng kết số tiền tính lại */}
+                      <div className="p-4 bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-100 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                          <div className="font-bold text-slate-800">Tổng thanh toán sau khi điều chỉnh:</div>
+                          <div className="text-[11px] text-slate-500">
+                            Giá gốc ban đầu: {selectedTask.totalPrice.toLocaleString()}đ •{" "}
+                            {pricingUnitType === "sqm"
+                              ? `Tính theo ${workAreaSqm} m²`
+                              : pricingUnitType === "hour"
+                              ? `Tính theo ${workHours} giờ`
+                              : "Gói cố định"}
+                            {surchargeAmount > 0 ? ` (+${surchargeAmount.toLocaleString()}đ phụ phí)` : ""}
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          <span className="text-2xl font-black text-indigo-700">
+                            {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(calculatedPrice)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* KHỐI 3: TIẾN TRÌNH THỰC HIỆN DỌN DẸP (STEPPER THEO ĐÚNG HÌNH ẢNH MẪU) */}
                 <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-7 shadow-2xs space-y-5">
                   <h3 className="font-bold text-sm text-slate-900 tracking-tight">Tiến trình thực hiện dọn dẹp</h3>
 
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 items-center text-center">
-                    {/* Bước 1: Đã nhận đơn */}
                     <div className="flex flex-col items-center relative">
                       <div className="w-9 h-9 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold shadow-xs">
                         <Check className="w-4 h-4" />
@@ -603,7 +876,6 @@ export default function CleanerPortalPage() {
                       <div className="text-[10px] text-slate-400 mt-0.5">09:00, 15/11</div>
                     </div>
 
-                    {/* Bước 2: Đang di chuyển */}
                     <div className="flex flex-col items-center relative">
                       <div
                         className={`w-9 h-9 rounded-full flex items-center justify-center font-bold shadow-xs ${
@@ -618,7 +890,6 @@ export default function CleanerPortalPage() {
                       <div className="text-[10px] text-slate-400 mt-0.5">09:15, 15/11</div>
                     </div>
 
-                    {/* Bước 3: Bắt đầu dọn dẹp */}
                     <div className="flex flex-col items-center relative">
                       <div
                         className={`w-9 h-9 rounded-full flex items-center justify-center font-bold shadow-xs ${
@@ -633,7 +904,6 @@ export default function CleanerPortalPage() {
                       <div className="text-[10px] text-slate-400 mt-0.5">09:30, 15/11</div>
                     </div>
 
-                    {/* Bước 4: Đang tiến hành */}
                     <div className="flex flex-col items-center relative">
                       <div
                         className={`w-9 h-9 rounded-full flex items-center justify-center font-bold shadow-xs ${
@@ -648,7 +918,6 @@ export default function CleanerPortalPage() {
                       <div className="text-[10px] text-slate-400 mt-0.5">Thời gian thực tế</div>
                     </div>
 
-                    {/* Bước 5: Hoàn tất & bàn giao */}
                     <div className="flex flex-col items-center relative">
                       <div
                         className={`w-9 h-9 rounded-full flex items-center justify-center font-bold shadow-xs ${
@@ -667,16 +936,15 @@ export default function CleanerPortalPage() {
                   </div>
                 </div>
 
-                {/* KHỐI 3 & 4: 2 CỘT CHUẨN FORM TRONG HÌNH ẢNH MẪU */}
+                {/* KHỐI 4 & 5: 2 CỘT CHUẨN FORM TRONG HÌNH ẢNH MẪU */}
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                  {/* CỘT TRÁI: FORM CẬP NHẬT TRẠNG THÁI TRỰC TUYẾN (6 CỘT) */}
+                  {/* CỘT TRÁI: FORM CẬP NHẬT TRẠNG THÁI TRỰC TUYẾN */}
                   <form
                     onSubmit={handleSubmitProgressUpdate}
                     className="md:col-span-6 bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-7 shadow-2xs space-y-4 text-xs"
                   >
                     <h3 className="font-bold text-sm text-slate-900">Cập nhật trạng thái trực tuyến</h3>
 
-                    {/* Chọn trạng thái công việc kế tiếp */}
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1.5">
                         Chọn trạng thái công việc kế tiếp <span className="text-rose-500">*</span>
@@ -693,7 +961,6 @@ export default function CleanerPortalPage() {
                       </select>
                     </div>
 
-                    {/* Ghi chú cho khách hàng */}
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1.5">
                         Ghi chú cho khách hàng
@@ -707,7 +974,6 @@ export default function CleanerPortalPage() {
                       />
                     </div>
 
-                    {/* Nút bấm Cập nhật tiến trình & Gửi thông báo */}
                     <div className="pt-2">
                       <button
                         type="submit"
@@ -726,7 +992,7 @@ export default function CleanerPortalPage() {
                     </div>
                   </form>
 
-                  {/* CỘT PHẢI: ẢNH BÁO CÁO NGHIỆM THU DỌN DẸP (6 CỘT) */}
+                  {/* CỘT PHẢI: ẢNH BÁO CÁO NGHIỆM THU DỌN DẸP */}
                   <div className="md:col-span-6 bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-7 shadow-2xs space-y-4 text-xs">
                     <h3 className="font-bold text-sm text-slate-900">Ảnh báo cáo nghiệm thu dọn dẹp</h3>
 
@@ -952,7 +1218,6 @@ export default function CleanerPortalPage() {
                         key={task.id}
                         className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs hover:border-blue-300 hover:shadow-xs transition-all overflow-hidden"
                       >
-                        {/* Header của thẻ đơn: Mã đơn hàng + Thời gian cập nhật */}
                         <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
                           <div className="flex items-center gap-2.5">
                             <span className="font-bold text-xs sm:text-sm text-slate-900">
@@ -985,7 +1250,6 @@ export default function CleanerPortalPage() {
                           </div>
                         </div>
 
-                        {/* Thân thẻ đơn: Icon giấy tờ + Chi tiết công việc + Số tiền */}
                         <div className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-5">
                           <div className="flex items-start gap-4">
                             <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
@@ -1026,7 +1290,6 @@ export default function CleanerPortalPage() {
                           </div>
                         </div>
 
-                        {/* Footer của thẻ đơn: CHỈ CÓ NÚT XEM CHI TIẾT ĐƠN */}
                         <div className="px-5 py-3.5 bg-slate-50/60 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                           <div className="text-slate-500 italic">
                             Hình thức dọn dẹp: Mang theo dụng cụ chuyên dụng tiêu chuẩn CleanMate

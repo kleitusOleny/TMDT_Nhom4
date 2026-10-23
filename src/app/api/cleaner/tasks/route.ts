@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, message: "Chưa đăng nhập" }, { status: 401 });
     }
 
-    if (user.role !== "CLEANER" && user.role !== "STAFF" && user.role !== "ADMIN") {
+    if (user.role !== "CLEANER" && user.role !== "STAFF" && user.role !== "ADMIN" && user.role !== "PROVIDER") {
       return NextResponse.json(
         { success: false, message: "Chỉ nhân viên dọn dẹp (Cleaner) mới có quyền truy cập" },
         { status: 403 }
@@ -63,6 +63,8 @@ export async function GET(req: NextRequest) {
             id: true,
             title: true,
             images: true,
+            priceStart: true,
+            pricingTable: true,
             shop: { select: { id: true, name: true, address: true } },
           },
         },
@@ -108,6 +110,15 @@ export async function GET(req: NextRequest) {
         }
       }
 
+      let pricingTable = b.service.pricingTable;
+      if (typeof pricingTable === "string") {
+        try {
+          pricingTable = JSON.parse(pricingTable);
+        } catch {
+          pricingTable = [];
+        }
+      }
+
       return {
         id: b.id,
         bookingCode: b.bookingCode,
@@ -122,6 +133,8 @@ export async function GET(req: NextRequest) {
         service: {
           id: b.service.id,
           title: b.service.title,
+          priceStart: Number(b.service.priceStart || 0),
+          pricingTable: Array.isArray(pricingTable) ? pricingTable : [],
           image: imagesList[0] || "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=600&q=80",
           shopName: b.service.shop?.name || "CleanMate Partner",
         },
@@ -170,7 +183,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// PATCH: Cập nhật trạng thái nhiệm vụ (Nhận đơn -> Bắt đầu làm -> Nghiệm thu hoàn thành với note & afterImages)
+// PATCH: Cập nhật trạng thái nhiệm vụ, ghi chú, ảnh nghiệm thu và tính lại giá (diện tích m2, số giờ, gói option)
 export async function PATCH(req: NextRequest) {
   try {
     const user = await getAuthenticatedUser(req);
@@ -186,19 +199,23 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { bookingId, status, beforeImages, afterImages, note } = body;
+    const { bookingId, status, beforeImages, afterImages, note, totalPrice } = body;
 
-    if (!bookingId || !status) {
+    if (!bookingId) {
       return NextResponse.json(
-        { success: false, message: "Thiếu mã đơn đặt lịch hoặc trạng thái cần cập nhật" },
+        { success: false, message: "Thiếu mã đơn đặt lịch cần cập nhật" },
         { status: 400 }
       );
     }
 
-    const data: Record<string, unknown> = { status };
+    const data: Record<string, unknown> = {};
+    if (status) data.status = status;
     if (beforeImages !== undefined) data.beforeImages = beforeImages;
     if (afterImages !== undefined) data.afterImages = afterImages;
     if (note !== undefined) data.note = note;
+    if (totalPrice !== undefined && !isNaN(Number(totalPrice))) {
+      data.totalPrice = Number(totalPrice);
+    }
 
     // Nếu cleaner tự nhận đơn
     if (user.role === "CLEANER" && status === "CONFIRMED") {
@@ -210,9 +227,17 @@ export async function PATCH(req: NextRequest) {
       data,
     });
 
+    // Nếu có cập nhật lại tổng tiền totalPrice thì đồng bộ luôn với bảng payment nếu có
+    if (totalPrice !== undefined && !isNaN(Number(totalPrice))) {
+      await prisma.payment.updateMany({
+        where: { booking: { id: Number(bookingId) } },
+        data: { amount: Number(totalPrice) },
+      });
+    }
+
     return NextResponse.json({
       success: true,
-      message: `Đã cập nhật trạng thái đơn #${updatedBooking.bookingCode} thành ${status}`,
+      message: `Đã cập nhật đơn #${updatedBooking.bookingCode} thành công!`,
       booking: updatedBooking,
     });
   } catch (error: unknown) {
