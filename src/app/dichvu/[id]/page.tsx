@@ -858,13 +858,45 @@ function DichVuContent({ serviceId }: { serviceId: string }) {
                   </span>
                 </div>
 
-                {/* Nút đặt dịch vụ ngay */}
-                <button
-                  type="button"
-                  className="w-full py-3.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-md shadow-blue-600/30 transition flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  Đặt dịch vụ ngay
-                </button>
+                {bookingSuccessMsg && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-xs font-semibold flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>{bookingSuccessMsg}</span>
+                  </div>
+                )}
+
+                <div className="space-y-2.5">
+                  {/* Nút Đặt dịch vụ ngay -> chuyển hướng đến trang thanh toán */}
+                  <button
+                    type="button"
+                    disabled={isAddingCart}
+                    onClick={() => handleAddToCart(true)}
+                    className="w-full py-3.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-md shadow-blue-600/30 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {isAddingCart ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Đang xử lý...</span>
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingBag className="w-4 h-4" />
+                        <span>Đặt dịch vụ ngay</span>
+                      </>
+                    )}
+                  </button>
+
+                  {/* Nút Thêm vào giỏ hàng */}
+                  <button
+                    type="button"
+                    disabled={isAddingCart}
+                    onClick={() => handleAddToCart(false)}
+                    className="w-full py-3 px-4 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-xl border border-blue-200 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    <ShoppingCart className="w-4 h-4" />
+                    <span>Thêm vào giỏ hàng</span>
+                  </button>
+                </div>
               </div>
 
               {/* Thông tin phụ trợ từ Database */}
