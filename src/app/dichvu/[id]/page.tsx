@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Header from "@/src/components/Header";
 import {
   Star,
@@ -19,6 +20,8 @@ import {
   Send,
   Reply,
   CornerDownRight,
+  ShoppingBag,
+  ShoppingCart,
 } from "lucide-react";
 
 interface PricingOption {
@@ -93,7 +96,71 @@ function DichVuContent({ serviceId }: { serviceId: string }) {
   const [selectedImage, setSelectedImage] = useState<string>("");
 
   // Bảng giá tùy chọn
+  const router = useRouter();
   const [selectedPricingId, setSelectedPricingId] = useState<string>("");
+  const [isAddingCart, setIsAddingCart] = useState(false);
+  const [bookingSuccessMsg, setBookingSuccessMsg] = useState("");
+
+  const handleAddToCart = async (goToCheckout = false) => {
+    if (!dichVu) return;
+    try {
+      setIsAddingCart(true);
+      setBookingSuccessMsg("");
+
+      let mainImg = "";
+      if (dichVu.images && dichVu.images.length > 0) {
+        mainImg = dichVu.images[0];
+      }
+
+      const cartItem = {
+        id: String(Date.now()),
+        serviceId: dichVu.id,
+        title: dichVu.title,
+        priceStart: currentOption ? currentOption.price : Number(dichVu.priceStart),
+        image: mainImg,
+        shopName: dichVu.shop.name,
+        quantity: 1,
+        scheduledDate: cleaningDate || new Date().toISOString().split("T")[0],
+        workingTime: "09:00",
+        note: currentOption ? currentOption.title : "",
+      };
+
+      // 1. Lưu vào localStorage để fallback tức thì
+      let localCart = [];
+      try {
+        const raw = localStorage.getItem("cleanmate_cart");
+        if (raw) localCart = JSON.parse(raw);
+        if (!Array.isArray(localCart)) localCart = [];
+      } catch {}
+      localCart.push(cartItem);
+      localStorage.setItem("cleanmate_cart", JSON.stringify(localCart));
+
+      // 2. Đồng bộ lên API cart nếu đã login
+      try {
+        await fetch("/api/cart", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            serviceId: dichVu.id,
+            quantity: 1,
+            scheduledDate: cleaningDate || null,
+            note: currentOption ? currentOption.title : null,
+          }),
+        });
+      } catch {}
+
+      if (goToCheckout) {
+        router.push("/checkout");
+      } else {
+        setBookingSuccessMsg("Đã thêm vào giỏ hàng thành công!");
+        setTimeout(() => setBookingSuccessMsg(""), 4000);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsAddingCart(false);
+    }
+  };
   const [cleaningDate, setCleaningDate] = useState("");
 
   // Bình luận & Đặt câu hỏi

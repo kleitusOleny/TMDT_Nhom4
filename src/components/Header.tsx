@@ -20,6 +20,7 @@ import {
   SlidersHorizontal,
   Star,
   Store,
+  ShoppingCart,
 } from "lucide-react";
 import { useSession, signOut as nextAuthSignOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -506,6 +507,15 @@ export default function Header({ currentPath = "/", showSearchOrBooking = true }
                 Đặt dịch vụ
               </Link>
             )}
+
+            {/* Icon Giỏ hàng (Cart) */}
+            <Link
+              href="/cart"
+              title="Xem giỏ hàng dịch vụ"
+              className="relative w-10 h-10 rounded-xl border border-slate-200 hover:border-blue-400 bg-slate-50 hover:bg-blue-50 text-slate-600 hover:text-blue-600 flex items-center justify-center transition cursor-pointer shadow-2xs"
+            >
+              <ShoppingCart className="w-4.5 h-4.5" />
+            </Link>
 
             {/* Icon Tìm kiếm kính lúp tinh gọn kiểu Cloudflare */}
             <button
