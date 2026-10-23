@@ -238,22 +238,39 @@ export default function CleanerPortalPage() {
     const base = selectedTask.service.priceStart || 150000;
     let computed = 0;
 
-    if (activeOpt) {
-      if (activeOpt.unit.includes("m²") || activeOpt.unit.includes("m2") || pricingUnitType === "sqm") {
-        computed = activeOpt.price * Number(workAreaSqm || 1);
-      } else if (activeOpt.unit.includes("giờ") || activeOpt.unit.includes("h") || pricingUnitType === "hour") {
-        computed = activeOpt.price * Number(workHours || 1);
-      } else {
-        computed = activeOpt.price;
+    if (pricingUnitType === "fixed") {
+      // 1. Gói cố định: nếu diện tích vượt mức ban đầu (ví dụ 51m2 > 50m2 ban đầu), cộng thêm (diện tích - mức ban đầu) * đơn giá/m2 (vd: 250k + 15k * 1)
+      const sqmOpt = options.find(
+        (p) => p.id !== activeOpt?.id && (p.unit.includes("m²") || p.unit.includes("m2") || p.title.toLowerCase().includes("m2") || p.id === "sqm")
+      );
+      const extraPerSqm = sqmOpt ? sqmOpt.price : 15000;
+
+      // Tìm ngưỡng diện tích tiêu chuẩn ban đầu trong mô tả gói (vd: "Dưới 50m²" -> 50)
+      let baseSqmThreshold = 50;
+      if (activeOpt?.sub) {
+        const match = activeOpt.sub.match(/(\d+)\s*(m²|m2)?/i);
+        if (match && Number(match[1]) > 0) {
+          baseSqmThreshold = Number(match[1]);
+        }
       }
+
+      const fixedPrice = activeOpt ? activeOpt.price : base;
+      const currentArea = Number(workAreaSqm || 0);
+
+      if (currentArea > baseSqmThreshold) {
+        const extraSqm = currentArea - baseSqmThreshold;
+        computed = fixedPrice + extraSqm * extraPerSqm;
+      } else {
+        computed = fixedPrice;
+      }
+    } else if (pricingUnitType === "sqm") {
+      const unitRate = activeOpt?.unit.includes("m²") || activeOpt?.unit.includes("m2") ? activeOpt.price : 15000;
+      computed = unitRate * Number(workAreaSqm || 1);
+    } else if (pricingUnitType === "hour") {
+      const unitRate = activeOpt?.unit.includes("giờ") || activeOpt?.unit.includes("h") ? activeOpt.price : 120000;
+      computed = unitRate * Number(workHours || 1);
     } else {
-      if (pricingUnitType === "sqm") {
-        computed = 15000 * Number(workAreaSqm || 1);
-      } else if (pricingUnitType === "hour") {
-        computed = 120000 * Number(workHours || 1);
-      } else {
-        computed = base;
-      }
+      computed = activeOpt ? activeOpt.price : base;
     }
 
     // Cộng thêm phụ phí yêu cầu phát sinh
@@ -766,11 +783,18 @@ export default function CleanerPortalPage() {
                         </div>
 
                         {/* Nhập số m2 hoặc số giờ */}
-                        {pricingUnitType === "sqm" && (
+                        {(pricingUnitType === "sqm" || pricingUnitType === "fixed") && (
                           <div>
-                            <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                              Diện tích thực tế (m²):
-                            </label>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <label className="block font-bold text-slate-700 uppercase tracking-wider">
+                                Diện tích thực tế (m²):
+                              </label>
+                              {pricingUnitType === "fixed" && (
+                                <span className="text-[10px] text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded-sm">
+                                  Tiêu chuẩn 50m²
+                                </span>
+                              )}
+                            </div>
                             <div className="relative">
                               <input
                                 type="number"
@@ -848,6 +872,8 @@ export default function CleanerPortalPage() {
                               ? `Tính theo ${workAreaSqm} m²`
                               : pricingUnitType === "hour"
                               ? `Tính theo ${workHours} giờ`
+                              : pricingUnitType === "fixed" && workAreaSqm > 50
+                              ? `Gói cố định (Vượt ${workAreaSqm - 50} m²: +${((workAreaSqm - 50) * 15000).toLocaleString()}đ)`
                               : "Gói cố định"}
                             {surchargeAmount > 0 ? ` (+${surchargeAmount.toLocaleString()}đ phụ phí)` : ""}
                           </div>
