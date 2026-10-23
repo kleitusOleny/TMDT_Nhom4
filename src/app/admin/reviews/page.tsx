@@ -76,34 +76,40 @@ export default function AdminReviewsPage() {
   const [selectedReview, setSelectedReview] = useState<ReviewAdminItem | null>(null);
   const [isAnalyzingAI, setIsAnalyzingAI] = useState(false);
 
-  // Gọi API AI phân loại cảm xúc khía cạnh tự động khi chọn review
-  const handleSelectReviewWithAI = async (review: ReviewAdminItem) => {
-    setSelectedReview(review);
+  // Hàm kích hoạt phân tích AI theo khía cạnh khi người dùng bấm nút
+  const handleAnalyzeSentimentAI = async () => {
+    if (!selectedReview || isAnalyzingAI) return;
 
-    // Nếu bình luận chưa có khía cạnh nào, tự động gọi AI Service để phân loại
-    if (!review.aspectSentiments || review.aspectSentiments.length === 0) {
-      try {
-        setIsAnalyzingAI(true);
-        const res = await fetch("/api/admin/reviews/sentiment", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: review.comment }),
-        });
-        const data = await res.json();
-        if (data.success && Array.isArray(data.predictions) && data.predictions.length > 0) {
-          const updated: ReviewAdminItem = {
-            ...review,
-            aspectSentiments: data.predictions,
-          };
-          setSelectedReview(updated);
-          setReviewsList((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
-        }
-      } catch (err) {
-        console.error("Lỗi phân tích cảm xúc khía cạnh:", err);
-      } finally {
-        setIsAnalyzingAI(false);
+    try {
+      setIsAnalyzingAI(true);
+      const res = await fetch("/api/admin/reviews/sentiment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: selectedReview.comment }),
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.predictions) && data.predictions.length > 0) {
+        const updated: ReviewAdminItem = {
+          ...selectedReview,
+          aspectSentiments: data.predictions,
+        };
+        setSelectedReview(updated);
+        setReviewsList((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+        showToast("Phân tích cảm xúc theo khía cạnh thành công!");
+      } else {
+        showToast(data.message || "Không tìm thấy khía cạnh phù hợp");
       }
+    } catch (err) {
+      console.error("Lỗi phân tích cảm xúc khía cạnh:", err);
+      showToast("Có lỗi xảy ra khi gọi AI phân tích");
+    } finally {
+      setIsAnalyzingAI(false);
     }
+  };
+
+  // Mở modal xem chi tiết bình luận
+  const handleSelectReviewWithAI = (review: ReviewAdminItem) => {
+    setSelectedReview(review);
   };
 
   const fetchReviews = async () => {
@@ -606,16 +612,24 @@ export default function AdminReviewsPage() {
                   <Sparkles className="w-4 h-4 text-indigo-600" />
                   <span>Phân loại cảm xúc theo khía cạnh (Aspect-Based Sentiment)</span>
                 </div>
-                {isAnalyzingAI ? (
-                  <span className="flex items-center gap-1.5 text-[11px] font-semibold text-indigo-700 bg-indigo-100/80 px-2.5 py-0.5 rounded-full animate-pulse border border-indigo-200">
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                    <span>AI PhoBERT đang phân tích...</span>
-                  </span>
-                ) : (
-                  <span className="text-[11px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
-                    Hỗ trợ phân tích người bán
-                  </span>
-                )}
+                <button
+                  type="button"
+                  onClick={handleAnalyzeSentimentAI}
+                  disabled={isAnalyzingAI}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer disabled:cursor-not-allowed"
+                >
+                  {isAnalyzingAI ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Đang phân tích...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Phân tích</span>
+                    </>
+                  )}
+                </button>
               </div>
 
               {/* Danh sách khía cạnh đã phân loại */}
