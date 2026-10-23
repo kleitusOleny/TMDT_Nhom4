@@ -27,6 +27,11 @@ export async function GET() {
               slug: true,
             },
           },
+          reviews: {
+            select: {
+              rating: true,
+            },
+          },
         },
       }),
 
@@ -64,10 +69,31 @@ export async function GET() {
       prisma.dichVu.count({ where: { isActive: true } }),
     ]);
 
+    // Format rating trung bình và count đánh giá thực tế
+    const formattedFeaturedServices = featuredServices.map((s) => {
+      const reviewList = s.reviews || [];
+      const reviewCount = reviewList.length;
+      let averageRating = s.rating;
+
+      if (reviewCount > 0) {
+        const sum = reviewList.reduce((acc, r) => acc + r.rating, 0);
+        averageRating = Number((sum / reviewCount).toFixed(1));
+      }
+
+      const { reviews: _reviews, ...serviceData } = s;
+      void _reviews;
+
+      return {
+        ...serviceData,
+        rating: averageRating,
+        totalReviews: reviewCount,
+      };
+    });
+
     return NextResponse.json({
       success: true,
       data: {
-        featuredServices,
+        featuredServices: formattedFeaturedServices,
         categories,
         topShops,
         stats: {

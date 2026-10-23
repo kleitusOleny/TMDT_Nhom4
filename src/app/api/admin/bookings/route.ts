@@ -63,6 +63,9 @@ export async function GET(req: NextRequest) {
         customer: {
           select: { id: true, fullName: true, phone: true, email: true },
         },
+        cleaner: {
+          select: { id: true, fullName: true, phone: true, email: true },
+        },
         service: {
           select: {
             id: true,
@@ -112,7 +115,8 @@ export async function GET(req: NextRequest) {
         category: b.service.categories[0]?.name || "Vệ sinh",
         sellerId: b.service.shop.id,
         sellerName: b.service.shop.name,
-        assignedStaff: b.isAcceptedByCustomer ? "Kỹ thuật viên đối tác" : undefined,
+        cleanerId: b.cleanerId,
+        assignedStaff: b.cleaner?.fullName || (b.isAcceptedByCustomer ? "Kỹ thuật viên đối tác" : undefined),
         bookingDate: dateStr,
         bookingTime: timeStr,
         address: b.address,
@@ -231,7 +235,7 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
-    const { bookingId, status, scheduledDate, address, note, totalPrice } = body;
+    const { bookingId, status, scheduledDate, address, note, totalPrice, cleanerId } = body;
 
     if (!bookingId) {
       return NextResponse.json(
@@ -246,6 +250,7 @@ export async function PATCH(req: NextRequest) {
     if (address) data.address = address;
     if (note !== undefined) data.note = note;
     if (totalPrice !== undefined && !isNaN(Number(totalPrice))) data.totalPrice = Number(totalPrice);
+    if (cleanerId !== undefined) data.cleanerId = cleanerId ? Number(cleanerId) : null;
 
     const updated = await prisma.booking.update({
       where: { bookingCode: bookingId },

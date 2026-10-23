@@ -14,6 +14,7 @@ enum Role {
   PROVIDER
   STAFF
   ADMIN
+  CLEANER
 }
 
 enum ApprovalStatus {
@@ -97,6 +98,7 @@ model User {
   // Core features
   shops            Shop[]         @relation("ShopOwner")
   bookings         Booking[]      @relation("CustomerBookings")
+  cleanerBookings  Booking[]      @relation("CleanerBookings")
   cancelledBooking Booking[]      @relation("CancelledBy")
   reviews          Review[]
   cart             Cart?
@@ -115,6 +117,26 @@ model User {
   // Chat
   conversations    Conversation[] @relation("UserConversations")
   messages         Message[]
+
+  // Sổ địa chỉ
+  addresses        UserAddress[]
+}
+
+model UserAddress {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  receiverName String   // Tên người nhận (ví dụ: Anh Nam, Chị Lan)
+  phone        String   // Số điện thoại liên hệ nhận dịch vụ
+  detailAddress String  @db.Text // Số nhà, tên đường, ngõ ngách, toà nhà
+  province     String?  // Tỉnh / Thành phố
+  district     String?  // Quận / Huyện
+  ward         String?  // Phường / Xã
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
 }
 
 model Category {
@@ -225,6 +247,9 @@ model Booking {
   
   customerId           Int
   customer             User          @relation("CustomerBookings", fields: [customerId], references: [id])
+
+  cleanerId            Int?
+  cleaner              User?         @relation("CleanerBookings", fields: [cleanerId], references: [id])
   
   serviceId            Int
   service              DichVu        @relation(fields: [serviceId], references: [id])

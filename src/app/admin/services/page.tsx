@@ -5,7 +5,7 @@ import { useAdmin } from "../layout";
 import { useSearchParams } from "next/navigation";
 import { ServiceRecord } from "@/src/lib/admin-data";
 import { ServiceEditModal } from "@/src/components/admin/AdminModals";
-import { Plus, Search, Edit, Trash2, Ban, Eye } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Ban, Eye, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 
 function AdminServicesContent() {
   const { viewMode, selectedSellerId, shopsList, showToast } = useAdmin();
@@ -18,8 +18,58 @@ function AdminServicesContent() {
   const [shopFilter, setShopFilter] = useState(initialSellerParam);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const [sortField, setSortField] = useState<string>("name");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<ServiceRecord | null>(null);
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortOrder("asc");
+    }
+  };
+
+  const sortedServices = [...servicesList].sort((a, b) => {
+    let aVal: string | number = "";
+    let bVal: string | number = "";
+
+    switch (sortField) {
+      case "name":
+        aVal = a.name.toLowerCase();
+        bVal = b.name.toLowerCase();
+        break;
+      case "category":
+        aVal = a.categoryName.toLowerCase();
+        bVal = b.categoryName.toLowerCase();
+        break;
+      case "seller":
+        aVal = a.sellerName.toLowerCase();
+        bVal = b.sellerName.toLowerCase();
+        break;
+      case "price":
+        aVal = a.price;
+        bVal = b.price;
+        break;
+      case "rating":
+        aVal = a.rating;
+        bVal = b.rating;
+        break;
+      case "status":
+        aVal = a.status;
+        bVal = b.status;
+        break;
+      default:
+        return 0;
+    }
+
+    if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
+    if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
+    return 0;
+  });
 
   // Format tiền tệ VNĐ
   const formatVND = (amount: number | undefined) => {
@@ -67,6 +117,14 @@ function AdminServicesContent() {
     unit: string;
     status: string;
     description?: string;
+    images?: string[];
+    pricingTable?: {
+      id: string;
+      title: string;
+      sub: string;
+      price: number;
+      unit: string;
+    }[];
   }) => {
     try {
       const method = data.serviceId ? "PATCH" : "POST";
@@ -206,17 +264,89 @@ function AdminServicesContent() {
         <table className="w-full text-left text-xs">
           <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider font-semibold border-b border-slate-200">
             <tr>
-              <th className="px-6 py-3.5">Tên Dịch Vụ</th>
-              <th className="px-6 py-3.5">Danh mục</th>
-              <th className="px-6 py-3.5">Đơn vị cung cấp</th>
-              <th className="px-6 py-3.5">Giá niêm yết</th>
-              <th className="px-6 py-3.5">Đánh giá</th>
-              <th className="px-6 py-3.5">Trạng thái</th>
+              <th
+                onClick={() => handleSort("name")}
+                className="px-6 py-3.5 cursor-pointer hover:bg-slate-100/80 transition select-none"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Tên Dịch Vụ</span>
+                  {sortField === "name" ? (
+                    sortOrder === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("category")}
+                className="px-6 py-3.5 cursor-pointer hover:bg-slate-100/80 transition select-none"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Danh mục</span>
+                  {sortField === "category" ? (
+                    sortOrder === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("seller")}
+                className="px-6 py-3.5 cursor-pointer hover:bg-slate-100/80 transition select-none"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Đơn vị cung cấp</span>
+                  {sortField === "seller" ? (
+                    sortOrder === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("price")}
+                className="px-6 py-3.5 cursor-pointer hover:bg-slate-100/80 transition select-none"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Giá niêm yết</span>
+                  {sortField === "price" ? (
+                    sortOrder === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("rating")}
+                className="px-6 py-3.5 cursor-pointer hover:bg-slate-100/80 transition select-none"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Đánh giá</span>
+                  {sortField === "rating" ? (
+                    sortOrder === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("status")}
+                className="px-6 py-3.5 cursor-pointer hover:bg-slate-100/80 transition select-none"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Trạng thái</span>
+                  {sortField === "status" ? (
+                    sortOrder === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />
+                  )}
+                </div>
+              </th>
               <th className="px-6 py-3.5 text-right">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-slate-700">
-            {servicesList.map((srv) => (
+            {sortedServices.map((srv) => (
               <tr key={srv.id} className="hover:bg-slate-50/80 transition">
                 <td className="px-6 py-4 font-semibold text-slate-900 max-w-xs">{srv.name}</td>
                 <td className="px-6 py-4">

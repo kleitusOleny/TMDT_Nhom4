@@ -3,7 +3,7 @@ export interface UserRecord {
   fullName: string;
   phone: string;
   email: string | null;
-  role: "ADMIN" | "SELLER" | "CUSTOMER" | "STAFF";
+  role: "ADMIN" | "SELLER" | "CUSTOMER" | "STAFF" | "CLEANER";
   actualRole?: string;
   status: "ACTIVE" | "BLOCKED";
   sellerName?: string;
@@ -40,6 +40,15 @@ export interface ServiceRecord {
   status: "APPROVED" | "PENDING" | "REJECTED" | "INACTIVE";
   rating: number;
   completedBookings: number;
+  description?: string;
+  images?: string[];
+  pricingTable?: {
+    id: string;
+    title: string;
+    sub: string;
+    price: number;
+    unit: string;
+  }[];
 }
 
 export interface BookingRecord {
@@ -53,6 +62,7 @@ export interface BookingRecord {
   sellerId: number;
   sellerName: string;
   assignedStaff?: string;
+  cleanerId?: number | null;
   bookingDate: string; // YYYY-MM-DD
   bookingTime: string;
   address: string;

@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { useAdmin } from "../layout";
 import { UserRecord } from "@/src/lib/admin-data";
-import { UserFormModal } from "@/src/components/admin/AdminModals";
-import { Plus, Search, Edit, Trash2, Ban, Check, ShieldAlert } from "lucide-react";
+import { UserFormModal, UserDetailModal } from "@/src/components/admin/AdminModals";
+import { Plus, Search, Edit, Trash2, Ban, Check, ShieldAlert, ArrowUpDown, ArrowUp, ArrowDown, Eye } from "lucide-react";
 
 export default function AdminUsersPage() {
   const { showToast } = useAdmin();
@@ -14,8 +14,61 @@ export default function AdminUsersPage() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
+  const [sortField, setSortField] = useState<string>("fullName");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
+
+  // Xem chi tiết người dùng
+  const [selectedDetailUserId, setSelectedDetailUserId] = useState<number | null>(null);
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortOrder("asc");
+    }
+  };
+
+  const sortedUsers = [...usersList].sort((a, b) => {
+    let aVal: string | number = "";
+    let bVal: string | number = "";
+
+    switch (sortField) {
+      case "fullName":
+        aVal = a.fullName.toLowerCase();
+        bVal = b.fullName.toLowerCase();
+        break;
+      case "phone":
+        aVal = a.phone;
+        bVal = b.phone;
+        break;
+      case "email":
+        aVal = (a.email || "").toLowerCase();
+        bVal = (b.email || "").toLowerCase();
+        break;
+      case "role":
+        aVal = a.role;
+        bVal = b.role;
+        break;
+      case "status":
+        aVal = a.status;
+        bVal = b.status;
+        break;
+      case "joinedDate":
+        aVal = a.joinedDate;
+        bVal = b.joinedDate;
+        break;
+      default:
+        return 0;
+    }
+
+    if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
+    if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
+    return 0;
+  });
 
   const fetchUsers = async () => {
     try {
@@ -143,6 +196,7 @@ export default function AdminUsersPage() {
           <option value="ALL">Tất cả vai trò</option>
           <option value="CUSTOMER">Khách hàng (CUSTOMER)</option>
           <option value="STAFF">Nhân viên sàn (STAFF)</option>
+          <option value="CLEANER">Nhân viên dọn dẹp (CLEANER)</option>
           <option value="SELLER">Nhà cung cấp (PROVIDER)</option>
           <option value="ADMIN">Quản trị viên (ADMIN)</option>
         </select>
@@ -163,17 +217,89 @@ export default function AdminUsersPage() {
         <table className="w-full text-left text-xs">
           <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider font-semibold border-b border-slate-200">
             <tr>
-              <th className="px-6 py-3.5">Họ & Tên</th>
-              <th className="px-6 py-3.5">Số điện thoại</th>
-              <th className="px-6 py-3.5">Email</th>
-              <th className="px-6 py-3.5">Vai trò (RBAC)</th>
-              <th className="px-6 py-3.5">Trạng thái</th>
-              <th className="px-6 py-3.5">Ngày tham gia</th>
+              <th
+                onClick={() => handleSort("fullName")}
+                className="px-6 py-3.5 cursor-pointer hover:bg-slate-100/80 transition select-none"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Họ & Tên</span>
+                  {sortField === "fullName" ? (
+                    sortOrder === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("phone")}
+                className="px-6 py-3.5 cursor-pointer hover:bg-slate-100/80 transition select-none"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Số điện thoại</span>
+                  {sortField === "phone" ? (
+                    sortOrder === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("email")}
+                className="px-6 py-3.5 cursor-pointer hover:bg-slate-100/80 transition select-none"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Email</span>
+                  {sortField === "email" ? (
+                    sortOrder === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("role")}
+                className="px-6 py-3.5 cursor-pointer hover:bg-slate-100/80 transition select-none"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Vai trò (RBAC)</span>
+                  {sortField === "role" ? (
+                    sortOrder === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("status")}
+                className="px-6 py-3.5 cursor-pointer hover:bg-slate-100/80 transition select-none"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Trạng thái</span>
+                  {sortField === "status" ? (
+                    sortOrder === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />
+                  )}
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort("joinedDate")}
+                className="px-6 py-3.5 cursor-pointer hover:bg-slate-100/80 transition select-none"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>Ngày tham gia</span>
+                  {sortField === "joinedDate" ? (
+                    sortOrder === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-300" />
+                  )}
+                </div>
+              </th>
               <th className="px-6 py-3.5 text-right">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-slate-700">
-            {usersList.map((user) => (
+            {sortedUsers.map((user) => (
               <tr key={user.id} className="hover:bg-slate-50/80 transition">
                 <td className="px-6 py-4 font-semibold text-slate-900 flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center shrink-0">
@@ -195,6 +321,8 @@ export default function AdminUsersPage() {
                         ? "bg-purple-100 text-purple-700"
                         : user.role === "STAFF"
                         ? "bg-amber-100 text-amber-700"
+                        : user.role === "CLEANER"
+                        ? "bg-teal-100 text-teal-700"
                         : user.role === "SELLER"
                         ? "bg-blue-100 text-blue-700"
                         : "bg-slate-100 text-slate-700"
@@ -222,6 +350,13 @@ export default function AdminUsersPage() {
                 <td className="px-6 py-4 text-slate-500">{user.joinedDate}</td>
                 <td className="px-6 py-4 text-right">
                   <div className="flex items-center justify-end gap-1.5">
+                    <button
+                      onClick={() => setSelectedDetailUserId(user.id)}
+                      title="Xem chi tiết người dùng (Đơn hàng, Địa chỉ, Đánh giá, Tổng thanh toán)"
+                      className="p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition cursor-pointer"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                    </button>
                     <button
                       onClick={() => {
                         setEditingUser(user);
@@ -268,6 +403,13 @@ export default function AdminUsersPage() {
             setEditingUser(null);
           }}
           onSubmit={handleSaveUser}
+        />
+      )}
+
+      {selectedDetailUserId !== null && (
+        <UserDetailModal
+          userId={selectedDetailUserId}
+          onClose={() => setSelectedDetailUserId(null)}
         />
       )}
     </div>

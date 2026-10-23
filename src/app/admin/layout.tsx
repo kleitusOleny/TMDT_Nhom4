@@ -21,6 +21,15 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
+interface CurrentUser {
+  id: number;
+  fullName: string | null;
+  email: string | null;
+  phone: string | null;
+  role: "ADMIN" | "PROVIDER" | "STAFF" | "CUSTOMER";
+  shops?: { id: number; name: string; slug: string; approvalStatus: string }[];
+}
+
 interface AdminContextType {
   viewMode: "ADMIN" | "SELLER";
   setViewMode: (mode: "ADMIN" | "SELLER") => void;
@@ -28,6 +37,8 @@ interface AdminContextType {
   setSelectedSellerId: (id: number) => void;
   shopsList: { id: number; name: string }[];
   showToast: (msg: string) => void;
+  currentUser: CurrentUser | null;
+  isProviderOnly: boolean;
 }
 
 const AdminContext = createContext<AdminContextType | null>(null);
@@ -47,6 +58,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
 
   const [viewMode, setViewMode] = useState<"ADMIN" | "SELLER">("ADMIN");
   const [selectedSellerId, setSelectedSellerId] = useState<number>(1);
@@ -59,31 +71,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // Tải danh sách shops để phục vụ selector
-  useEffect(() => {
-    async function loadShops() {
-      try {
-        const res = await fetch("/api/admin/providers?status=APPROVED");
-        const json = await res.json();
-        if (json.success && json.shops && json.shops.length > 0) {
-          setShopsList(json.shops.map((s: { id: number; name: string }) => ({ id: s.id, name: s.name })));
-          setSelectedSellerId(json.shops[0].id);
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    loadShops();
-  }, []);
+  const isProviderOnly = currentUser?.role === "PROVIDER";
 
-  // Xác thực quyền ADMIN
+  // Xác thực quyền truy cập: Hỗ trợ cả ADMIN và PROVIDER
   useEffect(() => {
     let isCancelled = false;
-    async function verifyAdminRole() {
+    async function verifyRole() {
       try {
         const res = await fetch("/api/auth/me", { cache: "no-store" });
         const data = await res.json();
-        if (!res.ok || !data.authenticated || data.user?.role !== "ADMIN") {
+        const user = data.user as CurrentUser | undefined;
+
+        if (!res.ok || !data.authenticated || !user || (user.role !== "ADMIN" && user.role !== "PROVIDER")) {
           if (!isCancelled) {
             setIsAuthorized(false);
             setIsCheckingAuth(false);
@@ -91,12 +90,39 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           }
           return;
         }
+
         if (!isCancelled) {
+          setCurrentUser(user);
           setIsAuthorized(true);
+
+          if (user.role === "PROVIDER") {
+            // Nếu là PROVIDER: Ép chế độ Người Bán (SELLER) và giới hạn cửa hàng chỉ thuộc về họ
+            setViewMode("SELLER");
+            const userShops = user.shops || [];
+            if (userShops.length > 0) {
+              setShopsList(userShops.map((s) => ({ id: s.id, name: s.name })));
+              setSelectedSellerId(userShops[0].id);
+            } else {
+              setShopsList([]);
+            }
+          } else {
+            // Nếu là ADMIN: Tải danh sách tất cả các shop đã duyệt
+            try {
+              const resShops = await fetch("/api/admin/providers?status=APPROVED");
+              const jsonShops = await resShops.json();
+              if (jsonShops.success && jsonShops.shops && jsonShops.shops.length > 0) {
+                setShopsList(jsonShops.shops.map((s: { id: number; name: string }) => ({ id: s.id, name: s.name })));
+                setSelectedSellerId(jsonShops.shops[0].id);
+              }
+            } catch (err) {
+              console.error("Lỗi tải danh sách shops cho Admin:", err);
+            }
+          }
+
           setIsCheckingAuth(false);
         }
       } catch (err) {
-        console.error("Lỗi xác thực quyền ADMIN:", err);
+        console.error("Lỗi xác thực người dùng:", err);
         if (!isCancelled) {
           setIsAuthorized(false);
           setIsCheckingAuth(false);
@@ -104,17 +130,27 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         }
       }
     }
-    verifyAdminRole();
+
+    verifyRole();
     return () => {
       isCancelled = true;
     };
   }, [router]);
 
+  // Bảo vệ route nếu PROVIDER cố tình truy cập vào các trang chỉ dành riêng cho ADMIN (/admin/users, /admin/providers)
+  useEffect(() => {
+    if (isProviderOnly) {
+      if (pathname.startsWith("/admin/users") || pathname.startsWith("/admin/providers")) {
+        router.replace("/admin");
+      }
+    }
+  }, [isProviderOnly, pathname, router]);
+
   if (isCheckingAuth) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
         <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-3" />
-        <h2 className="text-base font-semibold text-slate-700">Đang kiểm tra quyền Admin...</h2>
+        <h2 className="text-base font-semibold text-slate-700">Đang kiểm tra quyền truy cập...</h2>
       </div>
     );
   }
@@ -127,13 +163,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
         <h1 className="text-xl font-bold text-slate-900 mb-2">Truy Cập Bị Từ Chối</h1>
         <p className="text-slate-600 text-sm max-w-md mb-6">
-          Trang quản trị chỉ dành riêng cho tài khoản có vai trò Quản Trị Viên (ADMIN).
+          Khu vực quản trị chỉ dành cho tài khoản Quản trị viên (ADMIN) hoặc Nhà cung cấp dịch vụ (PROVIDER).
         </p>
         <Link
           href="/login"
           className="px-5 py-2.5 bg-blue-600 text-white font-semibold text-sm rounded-xl hover:bg-blue-700 transition"
         >
-          Đăng nhập bằng tài khoản ADMIN
+          Đăng nhập tài khoản khác
         </Link>
       </div>
     );
@@ -141,7 +177,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   // Tiêu đề tương ứng với route đang truy cập
   const getPageTitle = () => {
-    if (pathname === "/admin" || pathname === "/admin/analytics") return "Báo cáo Thống kê & Doanh thu";
+    if (pathname === "/admin" || pathname === "/admin/analytics") {
+      return isProviderOnly ? "Báo cáo Doanh thu Cửa hàng" : "Báo cáo Thống kê & Doanh thu";
+    }
     if (pathname.startsWith("/admin/users")) return "Phân quyền Tài khoản & Người dùng (RBAC)";
     if (pathname.startsWith("/admin/providers")) return "Quản lý Nhà cung cấp & Đối tác dịch vụ";
     if (pathname.startsWith("/admin/services")) {
@@ -153,19 +191,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (pathname.startsWith("/admin/finance")) {
       return viewMode === "ADMIN" ? "Báo cáo Tài chính & Hoa hồng 15%" : "Ví doanh thu & Rút tiền";
     }
-    return "Quản Trị Hệ Thống CleanMate";
+    return isProviderOnly ? "Kênh Quản Trị Gian Hàng Đối Tác" : "Quản Trị Hệ Thống CleanMate";
   };
 
   const navItems = [
     {
-      label: "Thống kê & Biểu đồ",
+      label: isProviderOnly ? "Thống kê & Doanh thu" : "Thống kê & Biểu đồ",
       href: "/admin",
       icon: BarChart3,
       adminOnly: false,
       isActive: pathname === "/admin" || pathname === "/admin/analytics",
     },
     {
-      label: "Phân quyền (RBAC)",
+      label: "Phân quyền",
       href: "/admin/users",
       icon: Users,
       adminOnly: true,
@@ -179,21 +217,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       isActive: pathname.startsWith("/admin/providers"),
     },
     {
-      label: viewMode === "ADMIN" ? "Quản lý Dịch vụ" : "Dịch vụ của tôi",
+      label: isProviderOnly || viewMode === "SELLER" ? "Dịch vụ của tôi" : "Quản lý Dịch vụ",
       href: "/admin/services",
       icon: Layers,
       adminOnly: false,
       isActive: pathname.startsWith("/admin/services"),
     },
     {
-      label: viewMode === "ADMIN" ? "Quản lý Đơn hàng" : "Đơn hàng nhận việc",
+      label: isProviderOnly || viewMode === "SELLER" ? "Đơn hàng nhận việc" : "Quản lý Đơn hàng",
       href: "/admin/bookings",
       icon: CalendarCheck,
       adminOnly: false,
       isActive: pathname.startsWith("/admin/bookings"),
     },
     {
-      label: viewMode === "ADMIN" ? "Tài chính & Hoa hồng" : "Ví & Rút tiền",
+      label: isProviderOnly || viewMode === "SELLER" ? "Ví & Rút tiền" : "Tài chính & Hoa hồng",
       href: "/admin/finance",
       icon: DollarSign,
       adminOnly: false,
@@ -204,12 +242,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <AdminContext.Provider
       value={{
-        viewMode,
-        setViewMode,
+        viewMode: isProviderOnly ? "SELLER" : viewMode,
+        setViewMode: isProviderOnly ? () => {} : setViewMode,
         selectedSellerId,
         setSelectedSellerId,
         shopsList,
         showToast,
+        currentUser,
+        isProviderOnly,
       }}
     >
       <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex">
@@ -257,62 +297,77 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             {/* Chuyển đổi Không gian Admin <-> Kênh Người Bán */}
             <div className="p-4 border-b border-slate-100 space-y-3">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1">
-                Không gian quản lý
-              </div>
-              <div className="bg-slate-100 p-1 rounded-xl flex items-center text-xs font-semibold">
-                <button
-                  onClick={() => {
-                    startTransition(() => setViewMode("ADMIN"));
-                  }}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg transition cursor-pointer ${
-                    viewMode === "ADMIN"
-                      ? "bg-white text-blue-600 shadow-xs font-bold"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Admin</span>
-                </button>
-                <button
-                  onClick={() => {
-                    startTransition(() => setViewMode("SELLER"));
-                  }}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg transition cursor-pointer ${
-                    viewMode === "SELLER"
-                      ? "bg-white text-blue-600 shadow-xs font-bold"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  <Store className="w-3.5 h-3.5" />
-                  <span>Người Bán</span>
-                </button>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1 flex items-center justify-between">
+                <span>Không gian quản lý</span>
+                {isProviderOnly && (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold">
+                    Đối tác
+                  </span>
+                )}
               </div>
 
-              {/* Dropdown chọn Shop đối tác nếu đang ở Kênh Người Bán */}
-              {viewMode === "SELLER" && (
+              {/* Nếu là PROVIDER thì ẨN TAB ADMIN, chỉ hiện badge Kênh Người Bán */}
+              {isProviderOnly ? (
+                <div className="bg-blue-50 border border-blue-200 p-2.5 rounded-xl flex items-center gap-2.5 text-blue-700 font-semibold text-xs">
+                  <Store className="w-4 h-4 text-blue-600 shrink-0" />
+                  <div className="truncate">
+                    <div className="text-[10px] text-blue-500 uppercase font-bold tracking-wider">Nhà cung cấp</div>
+                    <div className="truncate text-xs font-bold text-blue-900">
+                      {currentUser?.fullName || "Gian hàng đối tác"}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-slate-100 p-1 rounded-xl flex items-center text-xs font-semibold">
+                  <button
+                    onClick={() => {
+                      startTransition(() => setViewMode("ADMIN"));
+                    }}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg transition cursor-pointer ${
+                      viewMode === "ADMIN"
+                        ? "bg-white text-blue-600 shadow-xs font-bold"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Admin</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      startTransition(() => setViewMode("SELLER"));
+                    }}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg transition cursor-pointer ${
+                      viewMode === "SELLER"
+                        ? "bg-white text-blue-600 shadow-xs font-bold"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <Store className="w-3.5 h-3.5" />
+                    <span>Người Bán</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Dropdown chọn Cửa hàng:
+                  - Nếu là PROVIDER có nhiều hơn 1 cửa hàng: cho chọn giữa các cửa hàng của họ
+                  - Nếu là ADMIN ở chế độ SELLER: cho chọn trong toàn bộ danh sách shop
+              */}
+              {(viewMode === "SELLER" || isProviderOnly) && shopsList.length > 0 && (
                 <div className="pt-1">
                   <label className="block text-[11px] font-medium text-slate-500 mb-1 px-1">
-                    Chọn gian hàng:
+                    {isProviderOnly ? "Cửa hàng của bạn:" : "Chọn gian hàng:"}
                   </label>
                   <select
                     value={selectedSellerId}
                     onChange={(e) => setSelectedSellerId(Number(e.target.value))}
-                    className="w-full bg-slate-50 border border-slate-200 text-xs font-semibold py-2 px-2.5 rounded-xl shadow-2xs text-slate-800 outline-none cursor-pointer focus:border-blue-500 truncate"
+                    disabled={isProviderOnly && shopsList.length <= 1}
+                    className="w-full bg-slate-50 border border-slate-200 text-xs font-semibold py-2 px-2.5 rounded-xl shadow-2xs text-slate-800 outline-none cursor-pointer focus:border-blue-500 truncate disabled:bg-slate-100 disabled:cursor-default"
                   >
-                    {shopsList.length > 0 ? (
-                      shopsList.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name} (id: {s.id})
-                        </option>
-                      ))
-                    ) : (
-                      <>
-                        <option value={1}>Vệ sinh Sạch Bóng (id: 1)</option>
-                        <option value={2}>CleanPro (id: 2)</option>
-                        <option value={3}>Sài Gòn Xanh (id: 3)</option>
-                      </>
-                    )}
+                    {shopsList.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} (id: {s.id})
+                      </option>
+                    ))}
                   </select>
                 </div>
               )}
@@ -325,7 +380,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </div>
 
               {navItems.map((item) => {
-                if (item.adminOnly && viewMode !== "ADMIN") return null;
+                // Ẩn tab admin nếu là Provider hoặc nếu đang ở chế độ Người Bán
+                if (item.adminOnly && (isProviderOnly || viewMode !== "ADMIN")) return null;
                 const IconComponent = item.icon;
                 return (
                   <Link
@@ -359,7 +415,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <span>Quay về trang chủ</span>
               </Link>
               <div className="flex items-center justify-between px-3 text-[11px] text-slate-400">
-                <span>Hệ thống CleanMate</span>
+                <span>{isProviderOnly ? "Kênh đối tác" : "Hệ thống CleanMate"}</span>
                 <span className="font-semibold">v1.4.0</span>
               </div>
             </div>
@@ -385,7 +441,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             <div className="flex items-center gap-3">
               <span className="text-xs uppercase font-extrabold px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 tracking-wider hidden sm:inline-block">
-                {viewMode === "ADMIN" ? "Toàn sàn CleanMate" : "Kênh Người Bán"}
+                {isProviderOnly
+                  ? `Đối tác: ${currentUser?.fullName || "Gian hàng"}`
+                  : viewMode === "ADMIN"
+                  ? "Toàn sàn CleanMate"
+                  : "Kênh Người Bán"}
               </span>
             </div>
           </header>

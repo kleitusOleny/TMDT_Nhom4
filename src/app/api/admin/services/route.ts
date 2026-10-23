@@ -59,7 +59,10 @@ export async function GET(req: NextRequest) {
           },
         },
         _count: {
-          select: { bookings: true },
+          select: { bookings: true, reviews: true },
+        },
+        reviews: {
+          select: { rating: true },
         },
       },
     });
@@ -67,6 +70,14 @@ export async function GET(req: NextRequest) {
     const formattedList: ServiceRecord[] = dbServices.map((s) => {
       const cat = s.categories[0];
       const categoryKey = (cat?.slug || "home") as ServiceRecord["category"];
+
+      const reviewList = s.reviews || [];
+      const reviewCount = reviewList.length;
+      let averageRating = s.rating;
+      if (reviewCount > 0) {
+        const sum = reviewList.reduce((acc, r) => acc + r.rating, 0);
+        averageRating = Number((sum / reviewCount).toFixed(1));
+      }
 
       return {
         id: s.id,
@@ -78,8 +89,17 @@ export async function GET(req: NextRequest) {
         price: Number(s.priceStart),
         unit: s.duration || "gói",
         status: s.isActive ? "APPROVED" : "INACTIVE",
-        rating: s.rating,
-        completedBookings: s._count.bookings || s.totalReviews || 0,
+        rating: averageRating,
+        completedBookings: s._count.bookings || reviewCount || 0,
+        description: s.description || "",
+        images: Array.isArray(s.images)
+          ? (s.images as string[])
+          : typeof s.images === "string"
+          ? [s.images]
+          : [],
+        pricingTable: Array.isArray(s.pricingTable)
+          ? (s.pricingTable as { id: string; title: string; sub: string; price: number; unit: string }[])
+          : [],
       };
     });
 
@@ -93,7 +113,7 @@ export async function GET(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
-    const { serviceId, status, price, name, unit, category, sellerId } = body;
+    const { serviceId, status, price, name, unit, category, sellerId, description, images, pricingTable } = body;
 
     const data: Record<string, unknown> = {};
     if (status !== undefined) {
@@ -105,6 +125,9 @@ export async function PATCH(req: NextRequest) {
     if (name) data.title = name;
     if (unit) data.duration = unit;
     if (sellerId) data.shopId = Number(sellerId);
+    if (description !== undefined) data.description = description;
+    if (images !== undefined) data.images = images;
+    if (pricingTable !== undefined) data.pricingTable = pricingTable;
 
     if (category && category !== "all") {
       data.categories = {
@@ -137,6 +160,15 @@ export async function PATCH(req: NextRequest) {
       status: updated.isActive ? "APPROVED" : "INACTIVE",
       rating: updated.rating,
       completedBookings: updated._count.bookings,
+      description: updated.description || "",
+      images: Array.isArray(updated.images)
+        ? (updated.images as string[])
+        : typeof updated.images === "string"
+        ? [updated.images]
+        : [],
+      pricingTable: Array.isArray(updated.pricingTable)
+        ? (updated.pricingTable as { id: string; title: string; sub: string; price: number; unit: string }[])
+        : [],
     };
 
     return NextResponse.json({
@@ -153,7 +185,7 @@ export async function PATCH(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, category, sellerId, price, unit, description } = body;
+    const { name, category, sellerId, price, unit, description, images, pricingTable } = body;
 
     if (!name || !price || !unit) {
       return NextResponse.json(
@@ -177,9 +209,12 @@ export async function POST(req: NextRequest) {
         description: description || `Dịch vụ ${name} chất lượng cao do CleanMate cung cấp.`,
         priceStart: Number(price),
         duration: unit,
-        images: [
-          "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=800&q=80",
-        ],
+        images: Array.isArray(images) && images.length > 0
+          ? images
+          : [
+              "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=800&q=80",
+            ],
+        pricingTable: Array.isArray(pricingTable) && pricingTable.length > 0 ? pricingTable : undefined,
         isActive: true,
         shopId: targetShopId,
         categories: category && category !== "all"
@@ -208,6 +243,15 @@ export async function POST(req: NextRequest) {
       status: newService.isActive ? "APPROVED" : "INACTIVE",
       rating: 5.0,
       completedBookings: 0,
+      description: newService.description || "",
+      images: Array.isArray(newService.images)
+        ? (newService.images as string[])
+        : typeof newService.images === "string"
+        ? [newService.images]
+        : [],
+      pricingTable: Array.isArray(newService.pricingTable)
+        ? (newService.pricingTable as { id: string; title: string; sub: string; price: number; unit: string }[])
+        : [],
     };
 
     return NextResponse.json({

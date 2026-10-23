@@ -7,6 +7,7 @@ export async function GET(req: NextRequest) {
 
     const search = searchParams.get("search")?.trim() || "";
     const categorySlug = searchParams.get("category")?.trim() || "";
+    const shopSlug = searchParams.get("shop")?.trim() || searchParams.get("provider")?.trim() || "";
     const minPrice = searchParams.get("minPrice") ? Number(searchParams.get("minPrice")) : undefined;
     const maxPrice = searchParams.get("maxPrice") ? Number(searchParams.get("maxPrice")) : undefined;
     const rating = searchParams.get("rating") ? Number(searchParams.get("rating")) : undefined;
@@ -21,6 +22,7 @@ export async function GET(req: NextRequest) {
       where.OR = [
         { title: { contains: search } },
         { description: { contains: search } },
+        { shop: { name: { contains: search } } },
       ];
     }
 
@@ -29,6 +31,12 @@ export async function GET(req: NextRequest) {
         some: {
           slug: categorySlug,
         },
+      };
+    }
+
+    if (shopSlug && shopSlug !== "all") {
+      where.shop = {
+        slug: shopSlug,
       };
     }
 
@@ -58,8 +66,8 @@ export async function GET(req: NextRequest) {
       orderBy = { rating: "desc" };
     }
 
-    // Lấy song song danh sách dịch vụ và danh mục để làm bộ lọc
-    const [services, categories] = await Promise.all([
+    // Lấy song song danh sách dịch vụ, danh mục và nhà cung cấp để làm bộ lọc
+    const [services, categories, shops] = await Promise.all([
       prisma.dichVu.findMany({
         where,
         orderBy,
@@ -81,6 +89,11 @@ export async function GET(req: NextRequest) {
               slug: true,
             },
           },
+          reviews: {
+            select: {
+              rating: true,
+            },
+          },
         },
       }),
       prisma.category.findMany({
@@ -93,14 +106,52 @@ export async function GET(req: NextRequest) {
           },
         },
       }),
+      prisma.shop.findMany({
+        where: { approvalStatus: "APPROVED" },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          rating: true,
+          totalReviews: true,
+          area: true,
+          _count: {
+            select: { services: true },
+          },
+        },
+        orderBy: { name: "asc" },
+      }),
     ]);
+
+    // Tính toán số sao trung bình và số lượng đánh giá dựa trên count thực tế
+    const formattedServices = services.map((s) => {
+      const reviewList = s.reviews || [];
+      const reviewCount = reviewList.length;
+      let averageRating = s.rating;
+
+      if (reviewCount > 0) {
+        const sum = reviewList.reduce((acc, r) => acc + r.rating, 0);
+        averageRating = Number((sum / reviewCount).toFixed(1));
+      }
+
+      // Loại bỏ mảng reviews lớn khỏi response payload để tối ưu băng thông
+      const { reviews: _reviews, ...serviceData } = s;
+      void _reviews;
+
+      return {
+        ...serviceData,
+        rating: averageRating,
+        totalReviews: reviewCount,
+      };
+    });
 
     return NextResponse.json({
       success: true,
       data: {
-        services,
+        services: formattedServices,
         categories,
-        total: services.length,
+        shops,
+        total: formattedServices.length,
       },
     });
   } catch (error: unknown) {
