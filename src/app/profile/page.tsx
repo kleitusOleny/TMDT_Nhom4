@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { formatDateVN, formatDateTimeVN } from "@/src/lib/date-utils";
 import Header from "@/src/components/Header";
 import Footer from "@/src/components/Footer";
 import {
@@ -31,6 +32,9 @@ import {
   ChevronRight,
   Clock,
   ExternalLink,
+  Search,
+  Filter,
+  ArrowUpDown,
 } from "lucide-react";
 
 interface AddressItem {
@@ -111,6 +115,12 @@ export default function ProfilePage() {
   const [bookings, setBookings] = useState<BookingHistoryItem[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
 
+  // States lọc và sắp xếp lịch sử đơn hàng
+  const [orderSearchQuery, setOrderSearchQuery] = useState("");
+  const [orderStatusFilter, setOrderStatusFilter] = useState("ALL");
+  const [orderPaymentFilter, setOrderPaymentFilter] = useState("ALL");
+  const [orderSortBy, setOrderSortBy] = useState<"NEWEST" | "OLDEST" | "PRICE_ASC" | "PRICE_DESC">("NEWEST");
+
   // Address modal form
   const [receiverName, setReceiverName] = useState("");
   const [addressPhone, setAddressPhone] = useState("");
@@ -123,6 +133,50 @@ export default function ProfilePage() {
   const [isSavingAddress, setIsSavingAddress] = useState(false);
 
   // Hàm tải danh sách đơn hàng
+  // Danh sách đơn hàng đã qua lọc và sắp xếp
+  const filteredBookings = React.useMemo(() => {
+    let result = [...bookings];
+
+    // Lọc theo từ khóa tìm kiếm (mã đơn, tên dịch vụ, đối tác, địa chỉ)
+    if (orderSearchQuery.trim()) {
+      const q = orderSearchQuery.toLowerCase();
+      result = result.filter(
+        (b) =>
+          b.bookingCode.toLowerCase().includes(q) ||
+          b.serviceTitle.toLowerCase().includes(q) ||
+          b.shopName.toLowerCase().includes(q) ||
+          b.address.toLowerCase().includes(q)
+      );
+    }
+
+    // Lọc theo trạng thái đơn hàng
+    if (orderStatusFilter !== "ALL") {
+      result = result.filter((b) => b.status === orderStatusFilter);
+    }
+
+    // Lọc theo trạng thái thanh toán (COMPLETED / PAID hoặc PENDING / UNPAID)
+    if (orderPaymentFilter !== "ALL") {
+      if (orderPaymentFilter === "PAID") {
+        result = result.filter((b) => b.paymentStatus === "PAID" || b.paymentStatus === "COMPLETED");
+      } else if (orderPaymentFilter === "UNPAID") {
+        result = result.filter((b) => b.paymentStatus !== "PAID" && b.paymentStatus !== "COMPLETED");
+      }
+    }
+
+    // Sắp xếp
+    if (orderSortBy === "NEWEST") {
+      result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } else if (orderSortBy === "OLDEST") {
+      result.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    } else if (orderSortBy === "PRICE_ASC") {
+      result.sort((a, b) => a.totalPrice - b.totalPrice);
+    } else if (orderSortBy === "PRICE_DESC") {
+      result.sort((a, b) => b.totalPrice - a.totalPrice);
+    }
+
+    return result;
+  }, [bookings, orderSearchQuery, orderStatusFilter, orderPaymentFilter, orderSortBy]);
+
   const loadBookings = async () => {
     try {
       setLoadingBookings(true);
@@ -917,7 +971,7 @@ export default function ProfilePage() {
                   <Loader2 className="w-6 h-6 animate-spin text-emerald-600 mb-2" />
                   <span>Đang tải lịch sử đơn hàng...</span>
                 </div>
-              ) : bookings.length === 0 ? (
+              ) : filteredBookings.length === 0 ? (
                 <div className="py-14 text-center text-slate-500 border-2 border-dashed border-slate-100 rounded-2xl my-6">
                   <ShoppingBag className="w-12 h-12 text-slate-300 mx-auto mb-3" />
                   <p className="text-sm font-bold text-slate-800">Chưa có lịch sử đặt dịch vụ</p>
@@ -934,7 +988,7 @@ export default function ProfilePage() {
                 </div>
               ) : (
                 <div className="space-y-4 mt-6">
-                  {bookings.map((b) => (
+                  {filteredBookings.map((b) => (
                     <div
                       key={b.id}
                       className="p-5 rounded-2xl border border-slate-200/80 bg-slate-50/50 hover:bg-white hover:border-slate-300 hover:shadow-xs transition space-y-4"
@@ -946,7 +1000,7 @@ export default function ProfilePage() {
                           </span>
                           <span className="text-xs text-slate-500 flex items-center gap-1">
                             <Clock className="w-3.5 h-3.5 text-slate-400" />
-                            {new Date(b.createdAt).toLocaleString("vi-VN")}
+                            {formatDateTimeVN(b.createdAt)}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -974,7 +1028,7 @@ export default function ProfilePage() {
                                 : "bg-slate-100 text-slate-600"
                             }`}
                           >
-                            {b.paymentStatus === "PAID" ? "Đã thanh toán" : "Chưa thanh toán"}
+                            {(b.paymentStatus === "PAID" || b.paymentStatus === "COMPLETED") ? "Đã thanh toán" : "Chưa thanh toán"}
                           </span>
                         </div>
                       </div>

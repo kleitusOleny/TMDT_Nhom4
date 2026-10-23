@@ -1,5 +1,6 @@
 import React from "react";
 import { UserRecord, ProviderRecord, ServiceRecord, BookingRecord } from "@/src/lib/admin-data";
+import { formatDateVN } from "@/src/lib/date-utils";
 import { X, User, Building2, Plus, Trash2, MapPin, Calendar, CreditCard, Star, ShoppingBag, Eye, Phone, Mail, ShieldCheck, CheckCircle2 } from "lucide-react";
 
 // Format VNĐ
@@ -549,7 +550,7 @@ export function UserDetailModal({
                           <span className="font-bold text-slate-800">{b.serviceTitle}</span>
                         </div>
                         <div className="text-[11px] text-slate-500 mt-0.5">
-                          Ngày làm: {new Date(b.scheduledDate).toLocaleDateString("vi-VN")} • Địa chỉ: {b.address}
+                          Ngày làm: {formatDateVN(b.scheduledDate)} • Địa chỉ: {b.address}
                         </div>
                       </div>
                       <div className="flex items-center gap-3 self-end sm:self-center">

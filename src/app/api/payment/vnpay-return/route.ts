@@ -14,47 +14,58 @@ export async function GET(req: NextRequest) {
 
     const { isValid, responseCode, txnRef } = verifyVnpaySignature(queryParams);
 
-    // txnRef chính là bookingCode hoặc transactionId mà ta gửi sang VNPay
+    // Giao dịch thành công khi chữ ký hợp lệ và mã phản hồi của VNPay là "00"
     const isSuccess = isValid && responseCode === "00";
 
     if (txnRef) {
-      // Tìm booking theo bookingCode hoặc payment transactionId
-      const booking = await prisma.booking.findFirst({
+      // 1. Tìm tất cả các booking có transactionId bắt đầu bằng txnRef (để hỗ trợ đơn gồm nhiều dịch vụ)
+      const relatedPayments = await prisma.payment.findMany({
         where: {
           OR: [
-            { bookingCode: txnRef },
-            { payment: { transactionId: txnRef } },
+            { transactionId: txnRef },
+            { transactionId: { startsWith: `${txnRef}-` } },
           ],
         },
-        include: { payment: true },
+        select: { id: true, bookingId: true },
       });
 
-      if (booking) {
+      const bookingIds = relatedPayments.map((p) => p.bookingId);
+
+      // Nếu không tìm thấy qua payment, tìm qua bookingCode
+      if (bookingIds.length === 0) {
+        const singleBooking = await prisma.booking.findFirst({
+          where: { bookingCode: txnRef },
+          select: { id: true },
+        });
+        if (singleBooking) {
+          bookingIds.push(singleBooking.id);
+        }
+      }
+
+      if (bookingIds.length > 0) {
         if (isSuccess) {
-          // Cập nhật thanh toán thành công
-          await prisma.booking.update({
-            where: { id: booking.id },
+          // Cập nhật trạng thái Booking sang CONFIRMED và Payment sang COMPLETED
+          await prisma.booking.updateMany({
+            where: { id: { in: bookingIds } },
+            data: { status: BookingStatus.CONFIRMED },
+          });
+
+          await prisma.payment.updateMany({
+            where: { bookingId: { in: bookingIds } },
             data: {
-              status: BookingStatus.CONFIRMED,
-              payment: {
-                update: {
-                  status: PaymentStatus.COMPLETED,
-                  providerData: queryParams,
-                },
-              },
+              status: PaymentStatus.COMPLETED,
+              providerData: queryParams,
             },
           });
         } else {
           // Cập nhật thanh toán thất bại
-          if (booking.payment) {
-            await prisma.payment.update({
-              where: { id: booking.payment.id },
-              data: {
-                status: PaymentStatus.FAILED,
-                providerData: queryParams,
-              },
-            });
-          }
+          await prisma.payment.updateMany({
+            where: { bookingId: { in: bookingIds } },
+            data: {
+              status: PaymentStatus.FAILED,
+              providerData: queryParams,
+            },
+          });
         }
       }
     }

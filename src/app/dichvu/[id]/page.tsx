@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { formatDateVN } from "@/src/lib/date-utils";
 import Header from "@/src/components/Header";
 import {
   Star,
