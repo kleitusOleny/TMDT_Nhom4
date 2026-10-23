@@ -378,7 +378,7 @@ export default function CheckoutPage() {
 
   if (loadingUser || loadingCart) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center">
         <Loader2 className="w-10 h-10 animate-spin text-blue-600 mb-3" />
         <p className="text-sm font-semibold text-slate-600">Đang khởi tạo thanh toán...</p>
       </div>
@@ -388,7 +388,7 @@ export default function CheckoutPage() {
   // MÀN HÌNH ĐẶT ĐƠN THÀNH CÔNG
   if (isSuccess) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col">
+      <div className="min-h-screen bg-white flex flex-col">
         <Header currentPath="/checkout" />
         <main className="max-w-3xl mx-auto px-4 py-16 w-full flex-1 flex flex-col items-center text-center">
           <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-6 shadow-md shadow-emerald-500/20">
@@ -562,11 +562,11 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/50 text-slate-900 font-sans flex flex-col">
+    <div className="min-h-screen bg-white text-slate-900 font-sans flex flex-col">
       <Header currentPath="/checkout" />
 
       {/* BREADCRUMB */}
-      <div className="bg-white border-b border-slate-200/60 py-3.5">
+      <div className="bg-slate-50 border-b border-slate-200/80 py-3.5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center text-xs text-slate-500">
           <Link href="/" className="hover:text-blue-600 transition">Trang chủ</Link>
           <ChevronRight className="w-3.5 h-3.5 mx-2 text-slate-400" />
@@ -576,7 +576,7 @@ export default function CheckoutPage() {
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full flex-1">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full flex-1 bg-white">
         <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-8">
           Xác nhận Đặt lịch & Thanh toán
         </h1>
