@@ -19,7 +19,7 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
-  MessageSquareStar,
+  MessageSquare,
 } from "lucide-react";
 
 interface CurrentUser {
@@ -244,7 +244,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     {
       label: isProviderOnly || viewMode === "SELLER" ? "Bình luận & Đánh giá" : "Quản lý Đánh giá",
       href: "/admin/reviews",
-      icon: MessageSquareStar,
+      icon: MessageSquare,
       adminOnly: false,
       isActive: pathname.startsWith("/admin/reviews"),
     },
