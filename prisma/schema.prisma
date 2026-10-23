@@ -98,6 +98,7 @@ model User {
   // Core features
   shops            Shop[]         @relation("ShopOwner")
   bookings         Booking[]      @relation("CustomerBookings")
+  cleanerBookings  Booking[]      @relation("CleanerBookings")
   cancelledBooking Booking[]      @relation("CancelledBy")
   reviews          Review[]
   cart             Cart?
@@ -246,6 +247,9 @@ model Booking {
   
   customerId           Int
   customer             User          @relation("CustomerBookings", fields: [customerId], references: [id])
+
+  cleanerId            Int?
+  cleaner              User?         @relation("CleanerBookings", fields: [cleanerId], references: [id])
   
   serviceId            Int
   service              DichVu        @relation(fields: [serviceId], references: [id])

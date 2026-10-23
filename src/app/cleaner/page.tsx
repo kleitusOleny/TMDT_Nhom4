@@ -29,6 +29,9 @@ import {
   Eye,
   Camera,
   Navigation,
+  Image as ImageIcon,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { formatDateVN, formatDateTimeVN } from "@/src/lib/date-utils";
 
@@ -58,6 +61,8 @@ interface CleanerTask {
     tipAmount: number;
     method: string;
   } | null;
+  beforeImages?: string[];
+  afterImages?: string[];
   createdAt: string;
 }
 
@@ -91,6 +96,16 @@ export default function CleanerPortalPage() {
   const [areaFilter, setAreaFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [toastMessage, setToastMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // MODAL NGHIỆM THU CÔNG VIỆC VỚI GHI CHÚ VÀ HÌNH ẢNH SAU KHI DỌN
+  const [completingTask, setCompletingTask] = useState<CleanerTask | null>(null);
+  const [inspectionNote, setInspectionNote] = useState("");
+  const [afterImagesList, setAfterImagesList] = useState<string[]>([]);
+  const [newImageUrl, setNewImageUrl] = useState("");
+  const [isSubmittingInspection, setIsSubmittingInspection] = useState(false);
+
+  // MODAL XEM HÌNH ẢNH NGHIỆM THU
+  const [viewingImagesTask, setViewingImagesTask] = useState<CleanerTask | null>(null);
 
   const showToast = (text: string, type: "success" | "error" = "success") => {
     setToastMessage({ type, text });
@@ -146,7 +161,7 @@ export default function CleanerPortalPage() {
     }
   }, [userProfile]);
 
-  // Xử lý cập nhật trạng thái đơn (Nhận lịch dọn dẹp, Từ chối, Bắt đầu làm, Hoàn thành)
+  // Xử lý cập nhật trạng thái đơn (Nhận lịch dọn dẹp, Từ chối, Bắt đầu làm)
   const handleUpdateStatus = async (taskId: number, newStatus: string, actionLabel: string) => {
     try {
       setActionLoadingId(taskId);
@@ -166,6 +181,65 @@ export default function CleanerPortalPage() {
       showToast("Lỗi kết nối máy chủ", "error");
     } finally {
       setActionLoadingId(null);
+    }
+  };
+
+  // Mở modal nghiệm thu hoàn thành ca dọn
+  const handleOpenCompleteModal = (task: CleanerTask) => {
+    setCompletingTask(task);
+    setInspectionNote(task.note || "Đã hoàn thành dọn dẹp theo đúng tiêu chuẩn. Khách hàng đã kiểm tra thực tế.");
+    setAfterImagesList(
+      task.afterImages && task.afterImages.length > 0
+        ? task.afterImages
+        : [
+            "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=800&q=80",
+            "https://images.unsplash.com/photo-1584820927498-cfe5211fd8bf?auto=format&fit=crop&w=800&q=80",
+          ]
+    );
+    setNewImageUrl("");
+  };
+
+  // Thêm ảnh nghiệm thu vào danh sách
+  const handleAddAfterImage = () => {
+    if (!newImageUrl.trim()) return;
+    setAfterImagesList([...afterImagesList, newImageUrl.trim()]);
+    setNewImageUrl("");
+  };
+
+  // Xóa ảnh nghiệm thu khỏi danh sách
+  const handleRemoveAfterImage = (indexToRemove: number) => {
+    setAfterImagesList(afterImagesList.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  // Gửi Form Nghiệm Thu
+  const handleSubmitInspection = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!completingTask) return;
+
+    try {
+      setIsSubmittingInspection(true);
+      const res = await fetch("/api/cleaner/tasks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bookingId: completingTask.id,
+          status: "COMPLETED",
+          note: inspectionNote.trim(),
+          afterImages: afterImagesList,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast("Đã gửi hồ sơ nghiệm thu và hoàn thành ca dọn!", "success");
+        setCompletingTask(null);
+        await fetchTasks();
+      } else {
+        showToast(data.message || "Không thể nộp nghiệm thu", "error");
+      }
+    } catch (err) {
+      showToast("Lỗi gửi dữ liệu nghiệm thu", "error");
+    } finally {
+      setIsSubmittingInspection(false);
     }
   };
 
@@ -310,7 +384,10 @@ export default function CleanerPortalPage() {
             {/* Mục 2: Nhận đơn (Active) */}
             <button
               type="button"
-              className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold bg-blue-50 text-blue-700 transition"
+              onClick={() => setCurrentTab("NEW")}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                currentTab === "NEW" ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-50"
+              }`}
             >
               <div className="flex items-center gap-3">
                 <Inbox className="w-4 h-4 text-blue-600" />
@@ -327,7 +404,7 @@ export default function CleanerPortalPage() {
             <button
               type="button"
               onClick={() => setCurrentTab("IN_PROGRESS")}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
                 currentTab === "IN_PROGRESS"
                   ? "bg-slate-100 text-slate-900 font-bold"
                   : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
@@ -348,7 +425,7 @@ export default function CleanerPortalPage() {
             <button
               type="button"
               onClick={() => setCurrentTab("ACCEPTED")}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
                 currentTab === "ACCEPTED"
                   ? "bg-slate-100 text-slate-900 font-bold"
                   : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
@@ -369,7 +446,7 @@ export default function CleanerPortalPage() {
             <button
               type="button"
               onClick={() => setCurrentTab("COMPLETED")}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
                 currentTab === "COMPLETED"
                   ? "bg-slate-100 text-slate-900 font-bold"
                   : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
@@ -628,6 +705,20 @@ export default function CleanerPortalPage() {
                               📝 Ghi chú: {task.note}
                             </div>
                           )}
+
+                          {/* Nếu đã có ảnh nghiệm thu */}
+                          {task.afterImages && task.afterImages.length > 0 && (
+                            <div className="pt-1">
+                              <button
+                                type="button"
+                                onClick={() => setViewingImagesTask(task)}
+                                className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-blue-600 hover:text-blue-800 transition"
+                              >
+                                <Camera className="w-3.5 h-3.5" />
+                                <span>Xem {task.afterImages.length} ảnh sau khi dọn dẹp</span>
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -703,29 +794,36 @@ export default function CleanerPortalPage() {
                           </>
                         )}
 
-                        {/* TRẠNG THÁI IN_PROGRESS: Hoàn thành dọn dẹp */}
+                        {/* TRẠNG THÁI IN_PROGRESS: Mở Form Nghiệm thu dọn dẹp (ghi chú + ảnh) */}
                         {task.status === "IN_PROGRESS" && (
                           <button
                             type="button"
-                            disabled={actionLoadingId === task.id}
-                            onClick={() => handleUpdateStatus(task.id, "COMPLETED", "hoàn thành ca")}
-                            className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                            onClick={() => handleOpenCompleteModal(task)}
+                            className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-xs transition flex items-center gap-1.5 cursor-pointer"
                           >
-                            {actionLoadingId === task.id ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Check className="w-3.5 h-3.5" />
-                            )}
-                            <span>Hoàn thành nghiệm thu</span>
+                            <Camera className="w-3.5 h-3.5" />
+                            <span>Nghiệm thu & Hoàn thành ca dọn</span>
                           </button>
                         )}
 
                         {/* TRẠNG THÁI COMPLETED: Đã hoàn tất */}
                         {task.status === "COMPLETED" && (
-                          <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Đã hoàn tất</span>
-                          </span>
+                          <div className="flex items-center gap-2">
+                            {task.afterImages && task.afterImages.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setViewingImagesTask(task)}
+                                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold transition flex items-center gap-1 cursor-pointer"
+                              >
+                                <Eye className="w-3 h-3 text-slate-500" />
+                                <span>Xem ảnh</span>
+                              </button>
+                            )}
+                            <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Đã hoàn tất</span>
+                            </span>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -736,6 +834,175 @@ export default function CleanerPortalPage() {
           </section>
         </div>
       </main>
+
+      {/* MODAL FORM NGHIỆM THU HOÀN THÀNH (ĐIỀN GHI CHÚ VÀ HÌNH ẢNH SAU KHI DỌN DẸP) */}
+      {completingTask && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-xl rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                  <Camera className="w-4.5 h-4.5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-900">Nghiệm Thu Ca Dọn Dẹp</h3>
+                  <p className="text-[11px] text-slate-500">Mã đơn: #{completingTask.bookingCode}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCompletingTask(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitInspection} className="space-y-4 text-xs">
+              {/* Thông tin nhanh đơn hàng */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
+                <div className="font-bold text-slate-800">{completingTask.service.title}</div>
+                <div className="text-slate-500">Khách hàng: {completingTask.customer.fullName} • Địa chỉ: {completingTask.address}</div>
+              </div>
+
+              {/* Ghi chú sau khi dọn dẹp */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Ghi chú kết quả nghiệm thu <span className="text-rose-500">*</span>
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  value={inspectionNote}
+                  onChange={(e) => setInspectionNote(e.target.value)}
+                  placeholder="Mô tả kết quả công việc, khu vực đã xử lý sạch sẽ, phản hồi của khách hàng..."
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-emerald-600 focus:bg-white text-xs leading-relaxed"
+                />
+              </div>
+
+              {/* Hình ảnh sau khi dọn dẹp */}
+              <div>
+                <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Hình ảnh sau khi dọn dẹp (After Images)
+                </label>
+                
+                {/* Input thêm URL ảnh */}
+                <div className="flex gap-2 mb-3">
+                  <input
+                    type="url"
+                    value={newImageUrl}
+                    onChange={(e) => setNewImageUrl(e.target.value)}
+                    placeholder="Dán đường link ảnh sau khi làm sạch (https://...)"
+                    className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-emerald-600 text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddAfterImage}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Thêm ảnh</span>
+                  </button>
+                </div>
+
+                {/* Danh sách ảnh hiện tại */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {afterImagesList.map((imgUrl, idx) => (
+                    <div key={idx} className="relative group rounded-xl overflow-hidden border border-slate-200 aspect-video bg-slate-100">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={imgUrl} alt={`After ${idx + 1}`} className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAfterImage(idx)}
+                        className="absolute top-1.5 right-1.5 p-1 bg-rose-600/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition shadow-xs cursor-pointer"
+                        title="Xóa ảnh này"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                      <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/60 text-white text-[9px] font-mono">
+                        Ảnh {idx + 1}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Hành động Modal */}
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setCompletingTask(null)}
+                  disabled={isSubmittingInspection}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold cursor-pointer"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingInspection}
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {isSubmittingInspection ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Đang gửi hồ sơ...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Xác nhận hoàn tất ca dọn</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL XEM HÌNH ẢNH NGHIỆM THU */}
+      {viewingImagesTask && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-2xl rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
+                <Camera className="w-5 h-5 text-emerald-600" />
+                <span>Hình ảnh nghiệm thu công trình #{viewingImagesTask.bookingCode}</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setViewingImagesTask(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">
+              <strong>Ghi chú:</strong> {viewingImagesTask.note || "Đã hoàn tất theo tiêu chuẩn CleanMate"}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {viewingImagesTask.afterImages?.map((url, idx) => (
+                <div key={idx} className="rounded-xl overflow-hidden border border-slate-200 shadow-2xs">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt={`Inspection ${idx + 1}`} className="w-full h-48 object-cover hover:scale-105 transition-transform" />
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-2 text-right">
+              <button
+                type="button"
+                onClick={() => setViewingImagesTask(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 3. FOOTER XANH ĐEN THEO ĐÚNG HÌNH MẪU THIẾT KẾ */}
       <footer className="bg-[#1e293b] text-slate-300 text-xs mt-16 border-t border-slate-700/60">

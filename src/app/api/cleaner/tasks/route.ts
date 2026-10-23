@@ -55,6 +55,9 @@ export async function GET(req: NextRequest) {
         customer: {
           select: { id: true, fullName: true, phone: true, email: true },
         },
+        cleaner: {
+          select: { id: true, fullName: true, phone: true, email: true },
+        },
         service: {
           select: {
             id: true,
@@ -81,6 +84,30 @@ export async function GET(req: NextRequest) {
         imagesList = b.service.images as string[];
       }
 
+      let beforeImgs: string[] = [];
+      if (b.beforeImages) {
+        if (Array.isArray(b.beforeImages)) beforeImgs = b.beforeImages as string[];
+        else if (typeof b.beforeImages === "string") {
+          try {
+            beforeImgs = JSON.parse(b.beforeImages);
+          } catch {
+            beforeImgs = [b.beforeImages];
+          }
+        }
+      }
+
+      let afterImgs: string[] = [];
+      if (b.afterImages) {
+        if (Array.isArray(b.afterImages)) afterImgs = b.afterImages as string[];
+        else if (typeof b.afterImages === "string") {
+          try {
+            afterImgs = JSON.parse(b.afterImages);
+          } catch {
+            afterImgs = [b.afterImages];
+          }
+        }
+      }
+
       return {
         id: b.id,
         bookingCode: b.bookingCode,
@@ -90,6 +117,8 @@ export async function GET(req: NextRequest) {
         totalPrice: Number(b.totalPrice),
         status: b.status,
         customer: b.customer,
+        cleanerId: b.cleanerId,
+        cleaner: b.cleaner,
         service: {
           id: b.service.id,
           title: b.service.title,
@@ -104,8 +133,8 @@ export async function GET(req: NextRequest) {
               method: b.payment.method,
             }
           : null,
-        beforeImages: b.beforeImages,
-        afterImages: b.afterImages,
+        beforeImages: beforeImgs,
+        afterImages: afterImgs,
         createdAt: b.createdAt.toISOString(),
       };
     });
@@ -141,7 +170,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// PATCH: Cập nhật trạng thái nhiệm vụ (Nhận đơn -> Bắt đầu làm -> Hoàn thành)
+// PATCH: Cập nhật trạng thái nhiệm vụ (Nhận đơn -> Bắt đầu làm -> Nghiệm thu hoàn thành với note & afterImages)
 export async function PATCH(req: NextRequest) {
   try {
     const user = await getAuthenticatedUser(req);
@@ -149,7 +178,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: false, message: "Chưa đăng nhập" }, { status: 401 });
     }
 
-    if (user.role !== "CLEANER" && user.role !== "STAFF" && user.role !== "ADMIN") {
+    if (user.role !== "CLEANER" && user.role !== "STAFF" && user.role !== "ADMIN" && user.role !== "PROVIDER") {
       return NextResponse.json(
         { success: false, message: "Không có quyền thực hiện thao tác này" },
         { status: 403 }
@@ -157,7 +186,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { bookingId, status, beforeImages, afterImages } = body;
+    const { bookingId, status, beforeImages, afterImages, note } = body;
 
     if (!bookingId || !status) {
       return NextResponse.json(
@@ -167,8 +196,14 @@ export async function PATCH(req: NextRequest) {
     }
 
     const data: Record<string, unknown> = { status };
-    if (beforeImages) data.beforeImages = beforeImages;
-    if (afterImages) data.afterImages = afterImages;
+    if (beforeImages !== undefined) data.beforeImages = beforeImages;
+    if (afterImages !== undefined) data.afterImages = afterImages;
+    if (note !== undefined) data.note = note;
+
+    // Nếu cleaner tự nhận đơn
+    if (user.role === "CLEANER" && status === "CONFIRMED") {
+      data.cleanerId = user.id;
+    }
 
     const updatedBooking = await prisma.booking.update({
       where: { id: Number(bookingId) },

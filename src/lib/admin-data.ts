@@ -62,6 +62,7 @@ export interface BookingRecord {
   sellerId: number;
   sellerName: string;
   assignedStaff?: string;
+  cleanerId?: number | null;
   bookingDate: string; // YYYY-MM-DD
   bookingTime: string;
   address: string;
