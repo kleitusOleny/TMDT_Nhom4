@@ -26,7 +26,6 @@ LABEL_COLS = [
     "Thời gian_Tích cực", "Thời gian_Tiêu cực", "Thời gian_Trung tính"
 ]
 
-# 2. Định nghĩa kiến trúc CleanMatePhoBERT đúng như trong Notebook
 class CleanMatePhoBERT(nn.Module):
     def __init__(self, phobert_model, num_labels=12):
         super(CleanMatePhoBERT, self).__init__()
@@ -59,8 +58,8 @@ def get_or_load_model():
     if model is not None and tokenizer is not None:
         return model, tokenizer
 
-    MODEL_NAME = "vinai/phobert-base"
-    # Tìm đường dẫn checkpoint .pth
+    MODEL_NAME = "vinai/phobert-base-v2"
+
     possible_paths = [
         os.path.abspath("cleanmate_phobert_v1.pth"),
         os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "cleanmate_phobert_v1.pth")),
@@ -75,11 +74,11 @@ def get_or_load_model():
     if not weight_path:
         raise FileNotFoundError("Không tìm thấy file trọng số cleanmate_phobert_v1.pth")
 
-    print(f"[AI] Đang nạp tokenizer & model backbone {MODEL_NAME}...")
+    print(f"[AI] Loading tokenizer & model backbone {MODEL_NAME}...")
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, use_fast=False)
     phobert = AutoModel.from_pretrained(MODEL_NAME)
 
-    print(f"[AI] Đang nạp weights từ: {weight_path}...")
+    print(f"[AI] Loading weights from: {weight_path}...")
     model_instance = CleanMatePhoBERT(phobert, num_labels=len(LABEL_COLS))
     state_dict = torch.load(weight_path, map_location=device, weights_only=False)
     model_instance.load_state_dict(state_dict)
@@ -87,7 +86,7 @@ def get_or_load_model():
     model_instance.eval()
 
     model = model_instance
-    print("[AI] Sẵn sàng phân loại cảm xúc theo khía cạnh!")
+    print("[AI] Model is ready for inference!")
     return model, tokenizer
 
 class PredictRequest(BaseModel):
@@ -146,7 +145,6 @@ def predict_aspect_sentiment(req: PredictRequest):
                 "highlightText": req.text
             })
 
-    # Nếu không có nhãn nào vượt ngưỡng, chọn nhãn có xác suất cao nhất
     if not results:
         best_idx = int(torch.argmax(probs).item())
         best_score = float(probs[best_idx].item())
