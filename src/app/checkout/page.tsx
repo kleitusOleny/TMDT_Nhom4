@@ -92,59 +92,53 @@ export default function CheckoutPage() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [createdBookings, setCreatedBookings] = useState<any[]>([]);
 
-  // State chỉnh sửa option của item trong checkout
-  const [editingItem, setEditingItem] = useState<CartItemData | null>(null);
-  const [serviceOptions, setServiceOptions] = useState<{ id: string; title: string; sub: string; price: number; unit: string }[]>([]);
-  const [loadingOptions, setLoadingOptions] = useState(false);
-  const [selectedModalOptionId, setSelectedModalOptionId] = useState("");
-  const [modalItemDate, setModalItemDate] = useState("");
-  const [modalItemNote, setModalItemNote] = useState("");
+  // Lưu bảng giá các gói của từng dịch vụ để hiển thị trực tiếp trên giao diện
+  const [servicePricingMap, setServicePricingMap] = useState<Record<number, { id: string; title: string; sub: string; price: number; unit: string }[]>>({});
+  const [loadingPricingMap, setLoadingPricingMap] = useState(false);
 
-  // Hàm mở modal sửa option dịch vụ
-  const handleOpenEditItem = async (item: CartItemData) => {
-    setEditingItem(item);
-    setModalItemDate(item.scheduledDate || scheduledDate);
-    setModalItemNote(item.note || "");
-    setLoadingOptions(true);
-    setServiceOptions([]);
+  // Tải bảng giá cho tất cả dịch vụ trong giỏ
+  useEffect(() => {
+    async function loadAllPricingTables() {
+      if (cartItems.length === 0) return;
+      const idsToFetch = Array.from(new Set(cartItems.map((item) => item.serviceId))).filter(
+        (id) => !servicePricingMap[id]
+      );
+      if (idsToFetch.length === 0) return;
 
-    try {
-      const res = await fetch(`/api/dich-vu/${item.serviceId}`);
-      const data = await res.json();
-      if (data.success && data.data && Array.isArray(data.data.pricingTable)) {
-        setServiceOptions(data.data.pricingTable);
-        // Tìm option hiện tại theo note hoặc price
-        const currentOpt = data.data.pricingTable.find(
-          (opt: any) => opt.title === item.note || opt.price === item.priceStart
+      try {
+        setLoadingPricingMap(true);
+        const map: Record<number, any[]> = {};
+        await Promise.all(
+          idsToFetch.map(async (sid) => {
+            try {
+              const res = await fetch(`/api/dich-vu/${sid}`);
+              const json = await res.json();
+              if (json.success && json.data && Array.isArray(json.data.pricingTable)) {
+                map[sid] = json.data.pricingTable;
+              }
+            } catch {}
+          })
         );
-        if (currentOpt) {
-          setSelectedModalOptionId(currentOpt.id);
-        } else if (data.data.pricingTable.length > 0) {
-          setSelectedModalOptionId(data.data.pricingTable[0].id);
-        }
+        setServicePricingMap((prev) => ({ ...prev, ...map }));
+      } finally {
+        setLoadingPricingMap(false);
       }
-    } catch (err) {
-      console.error("Lỗi lấy danh sách option:", err);
-    } finally {
-      setLoadingOptions(false);
     }
-  };
+    loadAllPricingTables();
+  }, [cartItems]);
 
-  // Hàm lưu option mới cho item
-  const handleSaveItemOption = () => {
-    if (!editingItem) return;
-
-    const chosenOpt = serviceOptions.find((opt) => opt.id === selectedModalOptionId);
-    const updatedPrice = chosenOpt ? chosenOpt.price : editingItem.priceStart;
-    const updatedNote = chosenOpt ? chosenOpt.title : modalItemNote;
+  // Hàm chọn gói trực tiếp ngay trên trang checkout không cần modal
+  const handleSelectOptionDirect = (itemId: number | string, serviceId: number, optionId: string) => {
+    const options = servicePricingMap[serviceId] || [];
+    const selectedOpt = options.find((o) => o.id === optionId);
+    if (!selectedOpt) return;
 
     const updated = cartItems.map((item) => {
-      if (item.id === editingItem.id) {
+      if (item.id === itemId) {
         return {
           ...item,
-          priceStart: updatedPrice,
-          note: updatedNote,
-          scheduledDate: modalItemDate || item.scheduledDate,
+          priceStart: selectedOpt.price,
+          note: selectedOpt.title,
         };
       }
       return item;
@@ -152,8 +146,9 @@ export default function CheckoutPage() {
 
     setCartItems(updated);
     localStorage.setItem("cleanmate_cart", JSON.stringify(updated));
-    setEditingItem(null);
   };
+
+
 
   // Hàm xóa dịch vụ trực tiếp khỏi trang checkout
   const handleRemoveCartItem = async (id: number | string) => {
@@ -455,108 +450,7 @@ export default function CheckoutPage() {
             </Link>
           </div>
         </main>
-  {/* MODAL CHỌN LẠI GÓI / OPTION DỊCH VỤ */}
-      {editingItem && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-lg rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-5 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div>
-                <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
-                  <Settings2 className="w-5 h-5 text-blue-600" />
-                  <span>Tùy chỉnh gói dịch vụ</span>
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">{editingItem.title}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setEditingItem(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            {loadingOptions ? (
-              <div className="py-10 text-center flex flex-col items-center justify-center text-xs text-slate-400">
-                <Loader2 className="w-6 h-6 animate-spin text-blue-600 mb-2" />
-                <span>Đang tải các gói tùy chọn...</span>
-              </div>
-            ) : serviceOptions.length === 0 ? (
-              <div className="py-6 text-center text-xs text-slate-500">
-                Dịch vụ này chỉ có một mức giá cố định hoặc không có gói tùy chỉnh.
-              </div>
-            ) : (
-              <div className="space-y-2.5">
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
-                  Chọn gói thực hiện:
-                </label>
-                <div className="space-y-2">
-                  {serviceOptions.map((opt) => {
-                    const isSelected = selectedModalOptionId === opt.id;
-                    return (
-                      <div
-                        key={opt.id}
-                        onClick={() => setSelectedModalOptionId(opt.id)}
-                        className={`p-3.5 rounded-2xl border cursor-pointer transition flex items-center justify-between ${
-                          isSelected
-                            ? "border-blue-600 bg-blue-50/40 ring-2 ring-blue-500/20"
-                            : "border-slate-200 bg-slate-50/50 hover:bg-white"
-                        }`}
-                      >
-                        <div>
-                          <div className="font-bold text-xs sm:text-sm text-slate-900">{opt.title}</div>
-                          <div className="text-[11px] text-slate-500">{opt.sub}</div>
-                        </div>
-                        <div className="text-right">
-                          <span className="font-extrabold text-sm text-blue-600">
-                            {formatCurrency(opt.price)}
-                          </span>
-                          <span className="text-[10px] text-slate-400 ml-0.5">{opt.unit}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Điều chỉnh ngày hẹn riêng của dịch vụ này nếu muốn */}
-            <div className="pt-3 border-t border-slate-100 space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Ngày làm việc của dịch vụ này
-                </label>
-                <input
-                  type="date"
-                  value={modalItemDate}
-                  min={new Date().toISOString().split("T")[0]}
-                  onChange={(e) => setModalItemDate(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-blue-600"
-                />
-              </div>
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setEditingItem(null)}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
-              >
-                Hủy bỏ
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveItemOption}
-                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer transition"
-              >
-                Cập nhật gói
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-            <Footer />
+        <Footer />
       </div>
     );
   }
@@ -674,8 +568,8 @@ export default function CheckoutPage() {
               )}
             </div>
 
-            {/* KHỐI GIỮA: DANH SÁCH DỊCH VỤ - CHO PHÉP SỬA OPTION & XÓA */}
-            <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-7 shadow-xs space-y-4">
+            {/* KHỐI GIỮA: DANH SÁCH DỊCH VỤ - HIỂN THỊ TRỰC TIẾP CÁC GÓI ĐỂ CHỌN & SỬA XÓA */}
+            <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-7 shadow-xs space-y-4 font-sans">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-3 border-b border-slate-100 gap-2">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
@@ -683,7 +577,7 @@ export default function CheckoutPage() {
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-slate-900">Chi tiết dịch vụ đã đặt</h3>
-                    <p className="text-xs text-slate-500">Bạn có thể thay đổi số lượng, chọn lại gói tùy chọn hoặc xóa dịch vụ</p>
+                    <p className="text-xs text-slate-500">Xem và chọn trực tiếp các gói tùy chọn, điều chỉnh số lượng hoặc xóa dịch vụ</p>
                   </div>
                 </div>
 
@@ -708,106 +602,139 @@ export default function CheckoutPage() {
                   </Link>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {cartItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className="p-4 rounded-2xl border border-slate-200/90 bg-slate-50/50 hover:bg-white hover:border-slate-300 transition flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center"
-                    >
-                      <div className="flex items-center gap-3.5 flex-1 min-w-0">
-                        <div className="w-16 h-16 rounded-xl bg-slate-100 relative overflow-hidden shrink-0 border border-slate-200">
-                          <Image
-                            src={item.image || "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=300&q=80"}
-                            alt={item.title}
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
+                <div className="space-y-4">
+                  {cartItems.map((item) => {
+                    const options = servicePricingMap[item.serviceId] || [];
+                    return (
+                      <div
+                        key={item.id}
+                        className="p-5 rounded-2xl border border-slate-200/90 bg-slate-50/40 hover:bg-white hover:border-slate-300 transition space-y-4"
+                      >
+                        {/* Header thông tin dịch vụ */}
+                        <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+                          <div className="flex items-center gap-3.5 flex-1 min-w-0">
+                            <div className="w-16 h-16 rounded-xl bg-slate-100 relative overflow-hidden shrink-0 border border-slate-200">
+                              <Image
+                                src={item.image || "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=300&q=80"}
+                                alt={item.title}
+                                fill
+                                className="object-cover"
+                              />
+                            </div>
 
-                        <div className="min-w-0 flex-1">
-                          <Link
-                            href={`/dichvu/${item.serviceId}`}
-                            className="font-bold text-sm text-slate-900 hover:text-blue-600 transition line-clamp-1"
-                          >
-                            {item.title}
-                          </Link>
+                            <div className="min-w-0 flex-1">
+                              <Link
+                                href={`/dichvu/${item.serviceId}`}
+                                className="font-bold text-sm text-slate-900 hover:text-blue-600 transition line-clamp-1"
+                              >
+                                {item.title}
+                              </Link>
 
-                          <div className="text-xs text-slate-500 mt-0.5">
-                            Đối tác: <strong className="text-slate-700">{item.shopName}</strong>
+                              <div className="text-xs text-slate-500 mt-0.5">
+                                Đối tác cung ứng: <strong className="text-slate-700">{item.shopName}</strong>
+                              </div>
+
+                              <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-2">
+                                <span className="text-emerald-700 bg-emerald-50 border border-emerald-200/70 px-2 py-0.5 rounded-md font-semibold">
+                                  Đang chọn: {item.note || "Gói tiêu chuẩn"}
+                                </span>
+                              </div>
+                            </div>
                           </div>
 
-                          {/* Gói tùy chọn hiện tại */}
-                          <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/60">
-                              Gói: {item.note || "Mặc định"}
-                            </span>
-                            {item.scheduledDate && (
-                              <span className="text-[11px] text-slate-500">
-                                • Ngày hẹn: <strong>{item.scheduledDate}</strong>
+                          {/* Bộ tăng giảm số lượng & Xóa */}
+                          <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200/60">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs text-slate-500 mr-1">SL:</span>
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateItemQty(item.id, -1)}
+                                className="w-6 h-6 bg-white hover:bg-slate-100 border border-slate-200 rounded-md text-xs font-bold flex items-center justify-center cursor-pointer transition"
+                              >
+                                -
+                              </button>
+                              <span className="w-6 text-center font-bold text-xs text-slate-800">
+                                {item.quantity || 1}
                               </span>
-                            )}
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateItemQty(item.id, 1)}
+                                className="w-6 h-6 bg-white hover:bg-slate-100 border border-slate-200 rounded-md text-xs font-bold flex items-center justify-center cursor-pointer transition"
+                              >
+                                +
+                              </button>
+                            </div>
+
+                            <div className="text-right min-w-[100px]">
+                              <span className="block font-black text-base text-blue-600">
+                                {formatCurrency((item.priceStart || 0) * (item.quantity || 1))}
+                              </span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveCartItem(item.id)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer"
+                              title="Xóa dịch vụ này"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
                         </div>
+
+                        {/* DANH SÁCH CÁC GÓI TÙY CHỌN HIỂN THỊ TRỰC TIẾP ĐỂ BẤM CHỌN NGAY */}
+                        {options.length > 0 && (
+                          <div className="pt-3 border-t border-slate-200/70">
+                            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                              <Settings2 className="w-3.5 h-3.5 text-blue-600" />
+                              <span>Các gói tùy chọn (Bấm vào gói để đổi ngay):</span>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                              {options.map((opt) => {
+                                const isCurrentActive =
+                                  item.note === opt.title ||
+                                  (!item.note && item.priceStart === opt.price);
+
+                                return (
+                                  <div
+                                    key={opt.id}
+                                    onClick={() => handleSelectOptionDirect(item.id, item.serviceId, opt.id)}
+                                    className={`p-2.5 rounded-xl border text-xs cursor-pointer transition flex flex-col justify-between gap-1 ${
+                                      isCurrentActive
+                                        ? "border-blue-600 bg-blue-50/70 text-blue-900 shadow-xs ring-1 ring-blue-500/30"
+                                        : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 text-slate-700"
+                                    }`}
+                                  >
+                                    <div className="flex items-start justify-between gap-1">
+                                      <span className="font-bold line-clamp-1">{opt.title}</span>
+                                      {isCurrentActive && (
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                      )}
+                                    </div>
+
+                                    {opt.sub && (
+                                      <span className="text-[10px] text-slate-500 line-clamp-1">{opt.sub}</span>
+                                    )}
+
+                                    <div className="text-right font-extrabold text-blue-600 pt-0.5">
+                                      {formatCurrency(opt.price)}
+                                      <span className="text-[10px] font-normal text-slate-400 ml-0.5">{opt.unit}</span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
-
-                      {/* Nút chỉnh sửa Option, số lượng và Xóa */}
-                      <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-200/60">
-                        {/* Bộ tăng giảm số lượng */}
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateItemQty(item.id, -1)}
-                            className="w-6 h-6 bg-white hover:bg-slate-100 border border-slate-200 rounded-md text-xs font-bold flex items-center justify-center cursor-pointer transition"
-                          >
-                            -
-                          </button>
-                          <span className="w-7 text-center font-bold text-xs text-slate-800">
-                            {item.quantity || 1}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateItemQty(item.id, 1)}
-                            className="w-6 h-6 bg-white hover:bg-slate-100 border border-slate-200 rounded-md text-xs font-bold flex items-center justify-center cursor-pointer transition"
-                          >
-                            +
-                          </button>
-                        </div>
-
-                        {/* Tổng giá của item */}
-                        <div className="text-right min-w-[90px]">
-                          <span className="block font-black text-sm text-blue-600">
-                            {formatCurrency((item.priceStart || 0) * (item.quantity || 1))}
-                          </span>
-                        </div>
-
-                        {/* Nút Đổi gói option */}
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditItem(item)}
-                          className="px-2.5 py-1.5 bg-white hover:bg-blue-50 text-blue-600 hover:text-blue-700 rounded-xl border border-slate-200 text-xs font-semibold flex items-center gap-1 cursor-pointer transition shadow-2xs"
-                          title="Chọn lại gói / option dịch vụ"
-                        >
-                          <Settings2 className="w-3.5 h-3.5" />
-                          <span className="hidden md:inline">Đổi gói</span>
-                        </button>
-
-                        {/* Nút Xóa dịch vụ */}
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveCartItem(item.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer"
-                          title="Xóa dịch vụ này"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
 
-                        {/* KHỐI 2: THỜI GIAN THỰC HIỆN DỊCH VỤ */}
+            {/* KHỐI 2: THỜI GIAN THỰC HIỆN DỊCH VỤ */}
             <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-7 shadow-xs space-y-4">
               <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
                 <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
