@@ -3,6 +3,7 @@ import prisma from "@/src/lib/prisma";
 import { BookingStatus, PaymentMethod, PaymentStatus } from "@/src/generated/prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/src/app/api/auth/[...nextauth]/route";
+import { createVnpayPaymentUrl } from "@/src/lib/vnpay";
 
 async function getAuthenticatedUserId(req: NextRequest): Promise<number | null> {
   const sessionCookie = req.cookies.get("cleanmate_session")?.value;
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
       address, // Chuỗi địa chỉ chi tiết
       receiverName,
       phone,
-      paymentMethod = "CASH", // CASH, VNPAY, MOMO, BANK_TRANSFER
+      paymentMethod = "CASH", // Chỉ hỗ trợ CASH hoặc VNPAY
       customerNote,
     } = body;
 
@@ -67,22 +68,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Kiểm tra hợp lệ của paymentMethod
-    const validMethods: PaymentMethod[] = [
-      PaymentMethod.CASH,
-      PaymentMethod.VNPAY,
-      PaymentMethod.MOMO,
-      PaymentMethod.BANK_TRANSFER,
-      PaymentMethod.CREDIT_CARD,
-    ];
-    const chosenMethod = validMethods.includes(paymentMethod as PaymentMethod)
-      ? (paymentMethod as PaymentMethod)
-      : PaymentMethod.CASH;
+    // Chỉ chấp nhận CASH hoặc VNPAY
+    const chosenMethod = paymentMethod === "VNPAY" ? PaymentMethod.VNPAY : PaymentMethod.CASH;
 
     const createdBookings = [];
+    let grandTotal = 0;
+    const firstTxnRef = `CM${Date.now()}`;
 
     // Tạo booking cho từng dịch vụ được đặt
-    for (const item of items) {
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
       const service = await prisma.dichVu.findUnique({
         where: { id: Number(item.serviceId) },
         select: { id: true, title: true, priceStart: true },
@@ -93,6 +88,7 @@ export async function POST(req: NextRequest) {
       const qty = Math.max(1, Number(item.quantity) || 1);
       const unitPrice = item.price ? Number(item.price) : Number(service.priceStart);
       const totalPrice = unitPrice * qty;
+      grandTotal += totalPrice;
 
       const bookingCode = generateBookingCode();
       const scheduledDate = item.scheduledDate ? new Date(item.scheduledDate) : new Date();
@@ -100,7 +96,8 @@ export async function POST(req: NextRequest) {
       const fullAddress = receiverName ? `${receiverName} - ${phone} | ${address}` : `${phone} | ${address}`;
       const finalNote = [item.note, customerNote].filter(Boolean).join(" | ");
 
-      // Đơn thanh toán online (VNPAY, MOMO) hoặc chuyển khoản có thể set trạng thái PENDING
+      const transactionId = i === 0 ? firstTxnRef : `${firstTxnRef}-${i}`;
+
       const booking = await prisma.booking.create({
         data: {
           bookingCode,
@@ -116,7 +113,7 @@ export async function POST(req: NextRequest) {
               amount: totalPrice,
               method: chosenMethod,
               status: PaymentStatus.PENDING,
-              transactionId: `TXN-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+              transactionId,
             },
           },
         },
@@ -141,11 +138,31 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Nếu chọn thanh toán VNPAY -> Sinh URL chuyển tiếp sang cổng VNPay
+    let paymentUrl = null;
+    if (chosenMethod === PaymentMethod.VNPAY && grandTotal > 0) {
+      const forwarded = req.headers.get("x-forwarded-for");
+      const clientIp = forwarded ? forwarded.split(/, /)[0] : "127.0.0.1";
+
+      const origin = req.nextUrl.origin || "http://localhost:3000";
+      const returnUrl = `${origin}/api/payment/vnpay-return`;
+
+      paymentUrl = createVnpayPaymentUrl({
+        amount: grandTotal,
+        orderId: firstTxnRef,
+        orderInfo: `Thanh toan don dich vu CleanMate ${createdBookings[0]?.bookingCode}`,
+        ipAddr: clientIp,
+        returnUrl,
+      });
+    }
+
     return NextResponse.json({
       success: true,
       message: "Đặt lịch thành công!",
       bookings: createdBookings,
-      totalAmount: createdBookings.reduce((sum, b) => sum + Number(b.totalPrice), 0),
+      totalAmount: grandTotal,
+      paymentMethod: chosenMethod,
+      paymentUrl,
     });
   } catch (error: unknown) {
     console.error("Lỗi đặt đơn:", error);

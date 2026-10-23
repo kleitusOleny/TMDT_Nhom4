@@ -53,6 +53,24 @@ interface CartItemData {
 export default function CheckoutPage() {
   const router = useRouter();
 
+  // Kiểm tra callback phản hồi từ cổng thanh toán VNPay
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const vnpayStatus = urlParams.get("vnpay_status");
+    const txnRef = urlParams.get("vnp_TxnRef");
+
+    if (vnpayStatus === "success") {
+      setIsSuccess(true);
+      setPaymentMethod("VNPAY");
+      if (txnRef) {
+        setCreatedBookings([{ id: 1, bookingCode: txnRef, service: { title: "Dịch vụ đã thanh toán qua VNPay" }, totalPrice: 0 }]);
+      }
+    } else if (vnpayStatus === "failed") {
+      setErrorMessage("Giao dịch qua VNPay không thành công hoặc đã bị hủy. Vui lòng thử lại!");
+    }
+  }, []);
+
   // User state
   const [currentUser, setCurrentUser] = useState<{ id: number; fullName: string; phone: string; email: string } | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
@@ -84,7 +102,7 @@ export default function CheckoutPage() {
   const [customerNote, setCustomerNote] = useState("");
 
   // Payment method
-  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "VNPAY" | "MOMO" | "BANK_TRANSFER">("CASH");
+  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "VNPAY">("CASH");
 
   // Submission states
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -359,6 +377,13 @@ export default function CheckoutPage() {
       if (data.success) {
         // Xóa giỏ hàng cục bộ nếu có
         localStorage.removeItem("cleanmate_cart");
+
+        // Nếu thanh toán VNPay và có paymentUrl -> Chuyển hướng sang cổng thanh toán VNPay
+        if (paymentMethod === "VNPAY" && data.paymentUrl) {
+          window.location.href = data.paymentUrl;
+          return;
+        }
+
         setCreatedBookings(data.bookings || []);
         setIsSuccess(true);
       } else {
@@ -402,9 +427,7 @@ export default function CheckoutPage() {
               <span className="text-xs text-slate-500 uppercase font-semibold">Hình thức thanh toán:</span>
               <span className="text-xs font-bold px-3 py-1 bg-blue-50 text-blue-700 rounded-full border border-blue-200">
                 {paymentMethod === "CASH" && "Tiền mặt khi hoàn thành (COD)"}
-                {paymentMethod === "VNPAY" && "Cổng VNPAY"}
-                {paymentMethod === "MOMO" && "Ví MoMo"}
-                {paymentMethod === "BANK_TRANSFER" && "Chuyển khoản ngân hàng"}
+                {paymentMethod === "VNPAY" && "Cổng VNPAY (Đã thanh toán)"}
               </span>
             </div>
 
@@ -423,16 +446,7 @@ export default function CheckoutPage() {
               ))}
             </div>
 
-            {/* Thông tin chuyển khoản nếu chọn BANK_TRANSFER */}
-            {paymentMethod === "BANK_TRANSFER" && (
-              <div className="mt-4 p-4 bg-amber-50 rounded-2xl border border-amber-200 text-xs text-amber-900 space-y-2">
-                <div className="font-bold">Thông tin tài khoản nhận thanh toán:</div>
-                <div>Ngân hàng: <strong>MB Bank (Ngân hàng Quân Đội)</strong></div>
-                <div>Số tài khoản: <strong>999988886666</strong></div>
-                <div>Chủ tài khoản: <strong>CONG TY CO PHAN CLEANMATE VN</strong></div>
-                <div>Nội dung chuyển khoản: <strong>{createdBookings[0]?.bookingCode}</strong></div>
-              </div>
-            )}
+
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
@@ -635,9 +649,6 @@ export default function CheckoutPage() {
                               </div>
 
                               <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-2">
-                                <span className="text-emerald-700 bg-emerald-50 border border-emerald-200/70 px-2 py-0.5 rounded-md font-semibold">
-                                  Đang chọn: {item.note || "Gói tiêu chuẩn"}
-                                </span>
                               </div>
                             </div>
                           </div>
@@ -687,7 +698,7 @@ export default function CheckoutPage() {
                           <div className="pt-3 border-t border-slate-200/70">
                             <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                               <Settings2 className="w-3.5 h-3.5 text-blue-600" />
-                              <span>Các gói tùy chọn (Bấm vào gói để đổi ngay):</span>
+                              <span>Các gói tùy chọn:</span>
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
@@ -810,7 +821,7 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 {/* 1. Tiền mặt COD */}
                 <div
                   onClick={() => setPaymentMethod("CASH")}
@@ -820,13 +831,13 @@ export default function CheckoutPage() {
                       : "border-slate-200 bg-slate-50/50 hover:bg-white"
                   }`}
                 >
-                  <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                  <div className="w-11 h-11 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
                     <Banknote className="w-5 h-5" />
                   </div>
                   <div>
-                    <div className="font-bold text-sm text-slate-900">Tiền mặt (COD)</div>
-                    <div className="text-xs text-slate-500 mt-0.5">
-                      Thanh toán trực tiếp cho nhân viên sau khi nghiệm thu hài lòng
+                    <div className="font-bold text-sm text-slate-900">Tiền mặt khi hoàn thành (COD)</div>
+                    <div className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                      Thanh toán trực tiếp cho nhân viên dọn dẹp sau khi nghiệm thu hài lòng chất lượng
                     </div>
                   </div>
                 </div>
@@ -840,53 +851,16 @@ export default function CheckoutPage() {
                       : "border-slate-200 bg-slate-50/50 hover:bg-white"
                   }`}
                 >
-                  <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 font-extrabold text-xs">
+                  <div className="w-11 h-11 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 font-black text-xs tracking-wider shadow-sm shadow-blue-500/20">
                     VNPAY
                   </div>
                   <div>
-                    <div className="font-bold text-sm text-slate-900">Cổng VNPAY</div>
-                    <div className="text-xs text-slate-500 mt-0.5">
-                      Quét mã VNPAY-QR hoặc thẻ ATM / Visa / Mastercard nội địa
+                    <div className="font-bold text-sm text-slate-900 flex items-center gap-1.5">
+                      <span>Thanh toán online VNPAY</span>
+                      <span className="text-[10px] font-bold px-1.5 py-0.2 bg-blue-100 text-blue-700 rounded">QR / Thẻ</span>
                     </div>
-                  </div>
-                </div>
-
-                {/* 3. Ví MoMo */}
-                <div
-                  onClick={() => setPaymentMethod("MOMO")}
-                  className={`p-4 rounded-2xl border cursor-pointer transition flex items-start gap-3.5 ${
-                    paymentMethod === "MOMO"
-                      ? "border-pink-500 bg-pink-50/20 shadow-xs ring-2 ring-pink-500/20"
-                      : "border-slate-200 bg-slate-50/50 hover:bg-white"
-                  }`}
-                >
-                  <div className="w-10 h-10 rounded-xl bg-pink-100 text-pink-700 flex items-center justify-center shrink-0 font-extrabold text-xs">
-                    MOMO
-                  </div>
-                  <div>
-                    <div className="font-bold text-sm text-slate-900">Ví điện tử MoMo</div>
-                    <div className="text-xs text-slate-500 mt-0.5">
-                      Thanh toán nhanh chóng qua ứng dụng Ví MoMo
-                    </div>
-                  </div>
-                </div>
-
-                {/* 4. Chuyển khoản ngân hàng */}
-                <div
-                  onClick={() => setPaymentMethod("BANK_TRANSFER")}
-                  className={`p-4 rounded-2xl border cursor-pointer transition flex items-start gap-3.5 ${
-                    paymentMethod === "BANK_TRANSFER"
-                      ? "border-amber-500 bg-amber-50/20 shadow-xs ring-2 ring-amber-500/20"
-                      : "border-slate-200 bg-slate-50/50 hover:bg-white"
-                  }`}
-                >
-                  <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
-                    <Smartphone className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-sm text-slate-900">Chuyển khoản (Bank Transfer)</div>
-                    <div className="text-xs text-slate-500 mt-0.5">
-                      Chuyển khoản qua số tài khoản công ty theo mã đơn
+                    <div className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                      Quét mã VNPAY-QR qua ứng dụng ngân hàng, thẻ ATM, Visa, Mastercard hoặc JCB
                     </div>
                   </div>
                 </div>
