@@ -19,6 +19,8 @@ import {
   Frown,
   Tag,
   UserCheck,
+  Receipt,
+  Building2,
 } from "lucide-react";
 import { formatDateTimeVN } from "@/src/lib/date-utils";
 
@@ -543,7 +545,7 @@ export default function AdminReviewsPage() {
             </div>
 
             {/* Thông tin dịch vụ & Đơn hàng */}
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 flex gap-4 items-center">
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
               <div className="w-16 h-16 rounded-xl bg-slate-200 overflow-hidden shrink-0 border border-slate-200">
                 {selectedReview.service.image ? (
                   <img
@@ -557,29 +559,43 @@ export default function AdminReviewsPage() {
                   </div>
                 )}
               </div>
-              <div className="grow">
-                <div className="font-extrabold text-slate-900 text-sm">{selectedReview.service.title}</div>
-                <div className="text-xs text-slate-500 mt-0.5">
-                  Gian hàng: <strong className="text-slate-700">{selectedReview.service.shopName}</strong>
+              <div className="grow space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="font-extrabold text-slate-900 text-base">{selectedReview.service.title}</div>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-2xs">
+                    <Building2 className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Đơn vị:</span>
+                    <strong className="text-slate-900 font-bold">{selectedReview.service.shopName}</strong>
+                  </div>
                 </div>
-                <div className="text-[11px] text-slate-400 font-mono mt-0.5">
-                  Mã đơn liên kết: #{selectedReview.booking.bookingCode} • Giá trị:{" "}
-                  {selectedReview.booking.totalPrice.toLocaleString()}đ
+
+                {/* Khối thông tin Mã đơn & Giá trị hiển thị rõ ràng */}
+                <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 border border-blue-200/70 rounded-lg font-medium text-blue-900">
+                    <Receipt className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Mã đơn:</span>
+                    <strong className="font-mono font-bold text-blue-700">#{selectedReview.booking.bookingCode}</strong>
+                  </div>
+
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200/70 rounded-lg font-medium text-amber-900">
+                    <span>Giá trị đơn hàng:</span>
+                    <strong className="font-bold text-amber-700">{selectedReview.booking.totalPrice.toLocaleString()}đ</strong>
+                  </div>
                 </div>
 
                 {/* Người thực hiện đơn hàng (Cleaner / Thợ) */}
-                <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center gap-2">
-                  <div className="flex items-center gap-1.5 text-xs text-slate-500 font-semibold">
+                <div className="pt-2 border-t border-slate-200/60 flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 text-xs text-slate-600 font-bold">
                     <UserCheck className="w-4 h-4 text-emerald-600" />
                     <span>Người thực hiện:</span>
                   </div>
                   {selectedReview.booking.cleaner ? (
-                    <div className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200/60 px-2.5 py-0.5 rounded-lg">
+                    <div className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200/80 px-2.5 py-1 rounded-lg">
                       <span className="font-bold text-xs text-emerald-800">
                         {selectedReview.booking.cleaner.fullName}
                       </span>
                       {selectedReview.booking.cleaner.phone && (
-                        <span className="text-[11px] text-emerald-600 font-mono">
+                        <span className="text-[11px] text-emerald-600 font-mono font-semibold">
                           ({selectedReview.booking.cleaner.phone})
                         </span>
                       )}
