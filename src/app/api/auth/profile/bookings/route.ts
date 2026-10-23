@@ -44,7 +44,15 @@ export async function GET(req: NextRequest) {
             duration: true,
             priceStart: true,
             shop: {
-              select: { id: true, name: true, phone: true, area: true, address: true },
+              select: {
+                id: true,
+                name: true,
+                area: true,
+                address: true,
+                owner: {
+                  select: { phone: true },
+                },
+              },
             },
             categories: {
               select: { id: true, name: true },
@@ -53,7 +61,7 @@ export async function GET(req: NextRequest) {
           },
         },
         cleaner: {
-          select: { id: true, fullName: true, phone: true, email: true, avatar: true },
+          select: { id: true, fullName: true, phone: true, email: true, image: true },
         },
         payment: true,
         review: true,
@@ -95,7 +103,7 @@ export async function GET(req: NextRequest) {
         categoryName: b.service.categories[0]?.name || "Vệ sinh",
         shopId: b.service.shop?.id,
         shopName: b.service.shop?.name || "Đối tác CleanMate",
-        shopPhone: b.service.shop?.phone,
+        shopPhone: b.service.shop?.owner?.phone,
         shopAddress: b.service.shop?.address,
         cleaner: b.cleaner
           ? {
@@ -103,7 +111,7 @@ export async function GET(req: NextRequest) {
               fullName: b.cleaner.fullName || "Nhân viên dọn dẹp",
               phone: b.cleaner.phone || "---",
               email: b.cleaner.email,
-              avatar: b.cleaner.avatar,
+              avatar: b.cleaner.image,
             }
           : null,
         scheduledDate: b.scheduledDate.toISOString(),
