@@ -71,7 +71,7 @@ export default function LoginPage() {
         if (data?.user?.role === "ADMIN" || data?.user?.role === "PROVIDER") {
           router.push("/admin");
         } else if (data?.user?.role === "CLEANER") {
-          router.push("/profile?tab=tasks");
+          router.push("/cleaner");
         } else {
           router.push("/");
         }
