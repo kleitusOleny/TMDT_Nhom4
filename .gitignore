@@ -55,3 +55,11 @@ skills-lock.json
 
 # Project Task Tracker
 TASKS.md
+
+# Large ML model checkpoints
+*.pth
+*.pt
+*.bin
+*.onnx
+__pycache__/
+*.pyc

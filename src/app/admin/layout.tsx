@@ -19,6 +19,7 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
+  MessageSquare,
 } from "lucide-react";
 
 interface CurrentUser {
@@ -191,6 +192,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (pathname.startsWith("/admin/finance")) {
       return viewMode === "ADMIN" ? "Báo cáo Tài chính & Hoa hồng 15%" : "Ví doanh thu & Rút tiền";
     }
+    if (pathname.startsWith("/admin/reviews")) {
+      return viewMode === "ADMIN" ? "Quản lý Bình luận & Đánh giá khách hàng" : "Phản hồi & Cảm xúc khách hàng";
+    }
     return isProviderOnly ? "Kênh Quản Trị Gian Hàng Đối Tác" : "Quản Trị Hệ Thống CleanMate";
   };
 
@@ -236,6 +240,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       icon: DollarSign,
       adminOnly: false,
       isActive: pathname.startsWith("/admin/finance"),
+    },
+    {
+      label: isProviderOnly || viewMode === "SELLER" ? "Bình luận & Đánh giá" : "Quản lý Đánh giá",
+      href: "/admin/reviews",
+      icon: MessageSquare,
+      adminOnly: false,
+      isActive: pathname.startsWith("/admin/reviews"),
     },
   ];
 

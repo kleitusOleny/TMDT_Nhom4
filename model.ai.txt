@@ -1,0 +1,95 @@
+def predict_review(text, model, tokenizer, device, threshold=0.5):
+    # 1. Tiền xử lý
+    clean_text = preprocess_text(text)
+
+    # 2. Tokenize
+    encoding = tokenizer(
+        clean_text,
+        add_special_tokens=True,
+        max_length=MAX_LEN,
+        padding='max_length',
+        truncation=True,
+        return_attention_mask=True,
+        return_tensors='pt',
+    )
+
+    input_ids = encoding['input_ids'].to(device)
+    attention_mask = encoding['attention_mask'].to(device)
+
+    # 3. Dự đoán
+    model.eval()
+    with torch.no_grad():
+        outputs = model(input_ids, attention_mask)
+        probs = torch.sigmoid(outputs).squeeze(0) # Loại bỏ chiều batch
+
+    # 4. Lấy các nhãn vượt ngưỡng (threshold)
+    predictions = []
+    for idx, prob in enumerate(probs):
+        if prob > threshold:
+            predictions.append((label_cols[idx], prob.item()))
+
+    return predictions
+
+# --- Thử nghiệm trên một số câu mới ---
+sample_reviews = [
+    "Khách sạn sạch sẽ, giường ngủ êm ái nhưng nhân viên lễ tân hơi lạnh lùng.",
+    "Giá phòng quá cao so với chất lượng, wifi yếu.",
+    "Phòng đẹp, view nhìn ra biển rất tuyệt, nhân viên hỗ trợ nhiệt tình, tôi sẽ quay lại.",
+    "Phòng vệ sinh bẩn, mùi hôi khó chịu. Mình phải gọi dọn phòng ngay lập tức."
+]
+
+print("=== KẾT QUẢ DỰ ĐOÁN ===")
+for review in sample_reviews:
+    print(f"\nReview: \"{review}\"")
+    preds = predict_review(review, model, tokenizer, device)
+    if preds:
+        for label, prob in preds:
+            print(f"  -> {label}")
+    else:
+        print("  -> [Không phát hiện khía cạnh/cảm xúc nào]")
+
+def save_model(model, save_path="cleanmate_model.pth"):
+    """Lưu trọng số của mô hình"""
+    torch.save(model.state_dict(), save_path)
+    print(f"[INFO] Đã lưu trọng số mô hình tại: {save_path}")
+
+def load_model(model, load_path="cleanmate_model.pth", device='cpu'):
+    """Tải trọng số vào kiến trúc mô hình"""
+    if not os.path.exists(load_path):
+        print(f"[ERROR] Không tìm thấy file {load_path}")
+        return model
+
+    model.load_state_dict(torch.load(load_path, map_location=device))
+    model.to(device)
+    model.eval() # Chuyển sang chế độ đánh giá
+    print(f"[INFO] Đã tải thành công trọng số từ: {load_path}")
+    return model
+
+# ==========================================
+# DEMO: LƯU, TẢI VÀ DỰ ĐOÁN
+# ==========================================
+
+# 1. Lưu mô hình bạn vừa huấn luyện xong
+save_file = "cleanmate_phobert_v1.pth"
+save_model(model, save_file)
+
+# 2. Khởi tạo một kiến trúc mô hình mới (chưa có trọng số đã huấn luyện)
+print("\n[INFO] Khởi tạo một mô hình mới để test...")
+# Lưu ý: 'phobert' và 'num_labels' đã được định nghĩa ở các ô code trước
+loaded_model = CleanMatePhoBERT(phobert, num_labels)
+
+# 3. Tải trọng số từ file vừa lưu vào mô hình mới
+loaded_model = load_model(loaded_model, save_file, device)
+
+# 4. Test thử mô hình vừa được load lên
+test_sentence = "Dịch vụ quá tệ, dọn dẹp không sạch mà lấy giá trên trời!"
+print(f"\n=== TEST MÔ HÌNH LOAD TỪ FILE ===")
+print(f"Review: \"{test_sentence}\"")
+
+# Dùng hàm predict_review đã viết ở trên (truyền vào loaded_model thay vì model)
+preds = predict_review(test_sentence, loaded_model, tokenizer, device)
+if preds:
+    for label, prob in preds:
+        print(f"  -> {label} (Độ tự tin: {prob*100:.1f}%)")
+else:
+    print("  -> [Không phát hiện khía cạnh/cảm xúc nào]")
