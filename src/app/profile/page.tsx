@@ -35,6 +35,7 @@ import {
   Search,
   Filter,
   ArrowUpDown,
+  Navigation,
 } from "lucide-react";
 
 interface AddressItem {
@@ -61,6 +62,17 @@ interface UserProfile {
 }
 
 export default function ProfilePage() {
+  // Tự động chuyển tab nếu có query param ?tab=
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get("tab");
+      if (tab === "tasks" || tab === "orders" || tab === "address" || tab === "support" || tab === "info") {
+        setActiveTab(tab as any);
+      }
+    }
+  }, []);
+
   const router = useRouter();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -84,7 +96,7 @@ export default function ProfilePage() {
   const [successMessage, setSuccessMessage] = useState("");
 
   // Tab điều hướng bên trái: "info" | "address" | "orders" | "support"
-  const [activeTab, setActiveTab] = useState<"info" | "address" | "orders" | "support">("info");
+  const [activeTab, setActiveTab] = useState<"info" | "address" | "orders" | "support" | "tasks">("info");
 
   // Address states
   const [addresses, setAddresses] = useState<AddressItem[]>([]);
@@ -238,6 +250,99 @@ export default function ProfilePage() {
     loadAddresses();
     loadBookings();
   }, [router]);
+
+
+  // Cleaner States
+  interface CleanerTaskItem {
+    id: number;
+    bookingCode: string;
+    scheduledDate: string;
+    address: string;
+    note: string | null;
+    totalPrice: number;
+    status: string;
+    customer: {
+      id: number;
+      fullName: string | null;
+      phone: string | null;
+      email: string | null;
+    };
+    service: {
+      id: number;
+      title: string;
+      image: string;
+      shopName: string;
+    };
+    payment: {
+      status: string;
+      amount: number;
+      tipAmount: number;
+      method: string;
+    } | null;
+    beforeImages: any;
+    afterImages: any;
+    createdAt: string;
+  }
+
+  interface CleanerStats {
+    totalAssigned: number;
+    pending: number;
+    inProgress: number;
+    completed: number;
+    totalIncome: number;
+  }
+
+  const [cleanerTasks, setCleanerTasks] = useState<CleanerTaskItem[]>([]);
+  const [cleanerStats, setCleanerStats] = useState<CleanerStats | null>(null);
+  const [loadingTasks, setLoadingTasks] = useState(false);
+  const [taskFilter, setTaskFilter] = useState<"ALL" | "AVAILABLE" | "IN_PROGRESS" | "COMPLETED">("ALL");
+  const [isCleanerOnline, setIsCleanerOnline] = useState(true);
+  const [updatingTaskId, setUpdatingTaskId] = useState<number | null>(null);
+
+  const loadCleanerTasks = async () => {
+    try {
+      setLoadingTasks(true);
+      const res = await fetch(`/api/cleaner/tasks?filter=${taskFilter}`);
+      const data = await res.json();
+      if (data.success) {
+        setCleanerTasks(data.tasks || []);
+        setCleanerStats(data.stats || null);
+      }
+    } catch (err) {
+      console.error("Lỗi tải nhiệm vụ cleaner:", err);
+    } finally {
+      setLoadingTasks(false);
+    }
+  };
+
+  const handleUpdateTaskStatus = async (taskId: number, newStatus: string) => {
+    try {
+      setUpdatingTaskId(taskId);
+      const res = await fetch("/api/cleaner/tasks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingId: taskId, status: newStatus }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSuccessMessage(data.message || "Đã cập nhật trạng thái đơn!");
+        loadCleanerTasks();
+      } else {
+        setErrorMessage(data.message || "Không thể cập nhật trạng thái đơn");
+      }
+    } catch (err) {
+      setErrorMessage("Lỗi kết nối khi cập nhật đơn");
+    } finally {
+      setUpdatingTaskId(null);
+    }
+  };
+
+  
+  useEffect(() => {
+    if (profile?.role === "CLEANER" || profile?.role === "STAFF") {
+      loadCleanerTasks();
+    }
+  }, [taskFilter]);
 
   // Mở modal thêm địa chỉ
   const handleOpenAddAddress = () => {
@@ -424,6 +529,7 @@ export default function ProfilePage() {
     ADMIN: { label: "Quản trị viên sàn", bg: "bg-indigo-50 border-indigo-200", text: "text-indigo-700" },
     PROVIDER: { label: "Nhà cung cấp / Đối tác", bg: "bg-emerald-50 border-emerald-200", text: "text-emerald-700" },
     STAFF: { label: "Nhân viên dịch vụ", bg: "bg-amber-50 border-amber-200", text: "text-amber-700" },
+    CLEANER: { label: "Nhân viên dọn dẹp (Cleaner)", bg: "bg-teal-50 border-teal-200", text: "text-teal-700" },
     CUSTOMER: { label: "Khách hàng", bg: "bg-blue-50 border-blue-200", text: "text-blue-700" },
   };
 
@@ -1189,6 +1295,282 @@ export default function ProfilePage() {
                 </div>
               </div>
             </div>
+            )}
+
+            {/* TAB 5: NHIỆM VỤ DỌN DẸP DÀNH CHO CLEANER */}
+            {activeTab === "tasks" && (profile?.role === "CLEANER" || profile?.role === "STAFF") && (
+              <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-xs space-y-6">
+                {/* Header Tab Cleaner */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 border-b border-slate-100 gap-4">
+                  <div>
+                    <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-teal-600" />
+                      <span>Bảng Quản Lý Công Việc Dọn Dẹp (Cleaner)</span>
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Theo dõi ca làm việc, nhận đơn dọn dẹp mới và cập nhật tiến độ thực hiện
+                    </p>
+                  </div>
+
+                  {/* Switch trạng thái sẵn sàng nhận đơn */}
+                  <div className="flex items-center gap-3 bg-slate-50 p-2 sm:px-4 sm:py-2 rounded-2xl border border-slate-200">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2.5 h-2.5 rounded-full ${isCleanerOnline ? "bg-emerald-500 animate-pulse" : "bg-slate-400"}`} />
+                      <span className="text-xs font-semibold text-slate-700">
+                        {isCleanerOnline ? "Đang sẵn sàng nhận đơn" : "Đang tạm dừng nhận đơn"}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsCleanerOnline(!isCleanerOnline)}
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        isCleanerOnline ? "bg-teal-600" : "bg-slate-300"
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          isCleanerOnline ? "translate-x-5" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+
+                {/* 4 Thẻ KPI thống kê nhanh */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+                  <div className="p-4 rounded-2xl bg-teal-50/60 border border-teal-100">
+                    <div className="text-[11px] font-bold text-teal-800 uppercase tracking-wider">Tổng công việc</div>
+                    <div className="text-2xl font-black text-teal-900 mt-1">{cleanerStats?.totalAssigned || 0}</div>
+                    <div className="text-[11px] text-teal-600 mt-0.5">Tất cả nhiệm vụ</div>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-100">
+                    <div className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">Chờ nhận việc</div>
+                    <div className="text-2xl font-black text-amber-900 mt-1">{cleanerStats?.pending || 0}</div>
+                    <div className="text-[11px] text-amber-600 mt-0.5">Cần tiếp nhận ngay</div>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-100">
+                    <div className="text-[11px] font-bold text-blue-800 uppercase tracking-wider">Đang dọn dẹp</div>
+                    <div className="text-2xl font-black text-blue-900 mt-1">{cleanerStats?.inProgress || 0}</div>
+                    <div className="text-[11px] text-blue-600 mt-0.5">Đơn đang tiến hành</div>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-100">
+                    <div className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">Hoàn thành</div>
+                    <div className="text-2xl font-black text-emerald-900 mt-1">{cleanerStats?.completed || 0}</div>
+                    <div className="text-[11px] text-emerald-600 mt-0.5">
+                      {cleanerStats?.totalIncome ? new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(cleanerStats.totalIncome) : "0 đ"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bộ lọc trạng thái đơn */}
+                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mr-1">Bộ lọc ca:</span>
+                  {[
+                    { key: "ALL", label: "Tất cả đơn" },
+                    { key: "AVAILABLE", label: "Đơn mới / Cần nhận" },
+                    { key: "IN_PROGRESS", label: "Đang thực hiện" },
+                    { key: "COMPLETED", label: "Đã hoàn thành" },
+                  ].map((tab) => (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setTaskFilter(tab.key as any)}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                        taskFilter === tab.key
+                          ? "bg-teal-600 text-white shadow-xs"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Danh sách nhiệm vụ cleaner */}
+                {loadingTasks ? (
+                  <div className="py-12 flex flex-col items-center justify-center">
+                    <Loader2 className="w-7 h-7 text-teal-600 animate-spin mb-2" />
+                    <p className="text-xs text-slate-500 font-medium">Đang tải danh sách công việc...</p>
+                  </div>
+                ) : cleanerTasks.length === 0 ? (
+                  <div className="text-center py-12 px-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                    <Sparkles className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                    <h4 className="text-sm font-bold text-slate-700">Chưa có nhiệm vụ nào trong mục này</h4>
+                    <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                      Hiện tại không có ca dọn dẹp nào phù hợp với bộ lọc hiện tại. Vui lòng kiểm tra lại sau!
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {cleanerTasks.map((task) => (
+                      <div
+                        key={task.id}
+                        className="bg-white rounded-2xl border border-slate-200 hover:border-teal-300 transition-all shadow-xs p-5 space-y-4"
+                      >
+                        {/* Header của thẻ nhiệm vụ */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
+                          <div className="flex items-center gap-2.5">
+                            <span className="font-mono text-xs font-bold px-2.5 py-1 rounded-lg bg-teal-50 text-teal-700 border border-teal-200">
+                              #{task.bookingCode}
+                            </span>
+                            <span className="text-xs font-semibold text-slate-400">
+                              Đặt ngày: {formatDateVN(task.createdAt)}
+                            </span>
+                          </div>
+                          <div>
+                            <span
+                              className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                task.status === "COMPLETED"
+                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                  : task.status === "IN_PROGRESS"
+                                  ? "bg-blue-50 text-blue-700 border border-blue-200 animate-pulse"
+                                  : task.status === "CONFIRMED"
+                                  ? "bg-purple-50 text-purple-700 border border-purple-200"
+                                  : task.status === "PENDING"
+                                  ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                  : "bg-rose-50 text-rose-700 border border-rose-200"
+                              }`}
+                            >
+                              {task.status === "COMPLETED"
+                                ? "Hoàn thành"
+                                : task.status === "IN_PROGRESS"
+                                ? "Đang dọn dẹp"
+                                : task.status === "CONFIRMED"
+                                ? "Đã xác nhận"
+                                : task.status === "PENDING"
+                                ? "Chờ nhận đơn"
+                                : task.status}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Thân thẻ nhiệm vụ: Thông tin dịch vụ & khách hàng */}
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                          {/* Hình ảnh và tên dịch vụ */}
+                          <div className="md:col-span-4 flex items-start gap-3">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={task.service.image}
+                              alt={task.service.title}
+                              className="w-16 h-16 rounded-xl object-cover shrink-0 border border-slate-100 shadow-2xs"
+                            />
+                            <div>
+                              <h4 className="text-xs font-bold text-slate-900 leading-snug">
+                                {task.service.title}
+                              </h4>
+                              <p className="text-[11px] text-teal-700 font-semibold mt-1">
+                                🏢 {task.service.shopName}
+                              </p>
+                              <p className="text-[11px] font-bold text-slate-800 mt-1">
+                                {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(task.totalPrice)}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Lịch hẹn & Địa chỉ */}
+                          <div className="md:col-span-5 space-y-1.5 text-xs text-slate-600 bg-slate-50/70 p-3 rounded-xl border border-slate-100">
+                            <div className="flex items-start gap-2">
+                              <Calendar className="w-3.5 h-3.5 text-teal-600 shrink-0 mt-0.5" />
+                              <span>
+                                <strong className="text-slate-800">Thời gian làm việc:</strong>{" "}
+                                <span className="text-teal-700 font-bold">{formatDateVN(task.scheduledDate)}</span>
+                              </span>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
+                              <span>
+                                <strong className="text-slate-800">Địa chỉ:</strong> {task.address}
+                              </span>
+                            </div>
+                            {task.note && (
+                              <div className="text-[11px] text-slate-500 italic bg-white p-2 rounded-lg border border-slate-200/60">
+                                📝 Ghi chú: {task.note}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Khách hàng liên hệ */}
+                          <div className="md:col-span-3 space-y-1 text-xs bg-slate-50/70 p-3 rounded-xl border border-slate-100 flex flex-col justify-between">
+                            <div>
+                              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Khách hàng</div>
+                              <div className="font-bold text-slate-900 mt-0.5">
+                                {task.customer.fullName || "Khách hàng"}
+                              </div>
+                              <div className="font-mono text-teal-700 font-semibold mt-0.5">
+                                {task.customer.phone || "---"}
+                              </div>
+                            </div>
+                            {task.customer.phone && (
+                              <a
+                                href={`tel:${task.customer.phone}`}
+                                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:border-teal-300 text-teal-700 font-semibold rounded-lg text-[11px] shadow-2xs transition mt-2"
+                              >
+                                <Phone className="w-3 h-3 text-teal-600" />
+                                <span>Gọi khách hàng</span>
+                              </a>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Thanh thao tác cập nhật tiến độ (Nhận việc / Bắt đầu làm / Hoàn thành) */}
+                        <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                          <div className="text-[11px] text-slate-400">
+                            Thanh toán: <strong className="text-slate-700 uppercase">{task.payment?.method || "CASH"}</strong> ({task.payment?.status === "COMPLETED" ? "Đã thanh toán" : "Chưa thanh toán"})
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {task.status === "PENDING" && (
+                              <button
+                                type="button"
+                                disabled={updatingTaskId === task.id}
+                                onClick={() => handleUpdateTaskStatus(task.id, "CONFIRMED")}
+                                className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                              >
+                                {updatingTaskId === task.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                                <span>Tiếp nhận đơn này</span>
+                              </button>
+                            )}
+
+                            {task.status === "CONFIRMED" && (
+                              <button
+                                type="button"
+                                disabled={updatingTaskId === task.id}
+                                onClick={() => handleUpdateTaskStatus(task.id, "IN_PROGRESS")}
+                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                              >
+                                {updatingTaskId === task.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Navigation className="w-3.5 h-3.5" />}
+                                <span>Bắt đầu đến & Dọn dẹp</span>
+                              </button>
+                            )}
+
+                            {task.status === "IN_PROGRESS" && (
+                              <button
+                                type="button"
+                                disabled={updatingTaskId === task.id}
+                                onClick={() => handleUpdateTaskStatus(task.id, "COMPLETED")}
+                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                              >
+                                {updatingTaskId === task.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                                <span>Hoàn thành ca dọn</span>
+                              </button>
+                            )}
+
+                            {task.status === "COMPLETED" && (
+                              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>Đã hoàn tất nghiệm thu</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

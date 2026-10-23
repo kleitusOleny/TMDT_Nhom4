@@ -469,6 +469,16 @@ export default function Header({ currentPath = "/", showSearchOrBooking = true }
                           Kênh Quản trị Người bán
                         </Link>
                       )}
+                      {currentUser.role === "CLEANER" && (
+                        <Link
+                          href="/profile?tab=tasks"
+                          onClick={() => setIsDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-4 py-2 text-sm text-teal-700 bg-teal-50/50 hover:bg-teal-50 hover:text-teal-800 font-semibold transition"
+                        >
+                          <Sparkles className="w-4 h-4 text-teal-600" />
+                          Công việc Cleaner
+                        </Link>
+                      )}
 
                       <button
                         onClick={handleLogout}

@@ -3,7 +3,7 @@ export interface UserRecord {
   fullName: string;
   phone: string;
   email: string | null;
-  role: "ADMIN" | "SELLER" | "CUSTOMER" | "STAFF";
+  role: "ADMIN" | "SELLER" | "CUSTOMER" | "STAFF" | "CLEANER";
   actualRole?: string;
   status: "ACTIVE" | "BLOCKED";
   sellerName?: string;

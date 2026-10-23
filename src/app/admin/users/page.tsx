@@ -196,6 +196,7 @@ export default function AdminUsersPage() {
           <option value="ALL">Tất cả vai trò</option>
           <option value="CUSTOMER">Khách hàng (CUSTOMER)</option>
           <option value="STAFF">Nhân viên sàn (STAFF)</option>
+          <option value="CLEANER">Nhân viên dọn dẹp (CLEANER)</option>
           <option value="SELLER">Nhà cung cấp (PROVIDER)</option>
           <option value="ADMIN">Quản trị viên (ADMIN)</option>
         </select>
@@ -320,6 +321,8 @@ export default function AdminUsersPage() {
                         ? "bg-purple-100 text-purple-700"
                         : user.role === "STAFF"
                         ? "bg-amber-100 text-amber-700"
+                        : user.role === "CLEANER"
+                        ? "bg-teal-100 text-teal-700"
                         : user.role === "SELLER"
                         ? "bg-blue-100 text-blue-700"
                         : "bg-slate-100 text-slate-700"

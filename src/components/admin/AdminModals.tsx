@@ -289,6 +289,7 @@ export function UserFormModal({
             >
               <option value="CUSTOMER">Khách hàng (CUSTOMER) - Đặt dịch vụ & đánh giá</option>
               <option value="STAFF">Nhân viên sàn (STAFF) - Hỗ trợ vé & nghiệm thu</option>
+              <option value="CLEANER">Nhân viên dọn dẹp (CLEANER) - Nhận ca & làm việc</option>
               <option value="PROVIDER">Nhà cung cấp / Đối tác (PROVIDER) - Quản lý dịch vụ & đơn</option>
               <option value="ADMIN">Quản trị viên tối cao (ADMIN) - Toàn quyền hệ thống</option>
             </select>

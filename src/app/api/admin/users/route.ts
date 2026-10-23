@@ -51,9 +51,10 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      let displayRole: "ADMIN" | "SELLER" | "CUSTOMER" | "STAFF" = "CUSTOMER";
+      let displayRole: "ADMIN" | "SELLER" | "CUSTOMER" | "STAFF" | "CLEANER" = "CUSTOMER";
       if (user.role === "ADMIN") displayRole = "ADMIN";
       else if (user.role === "STAFF") displayRole = "STAFF";
+      else if (user.role === "CLEANER") displayRole = "CLEANER";
       else if (user.role === "PROVIDER" || user.shops.length > 0) displayRole = "SELLER";
 
       return NextResponse.json({
@@ -144,9 +145,10 @@ export async function GET(req: NextRequest) {
     });
 
     const formattedUsers = dbUsers.map((u) => {
-      let displayRole: "ADMIN" | "SELLER" | "CUSTOMER" | "STAFF" = "CUSTOMER";
+      let displayRole: "ADMIN" | "SELLER" | "CUSTOMER" | "STAFF" | "CLEANER" = "CUSTOMER";
       if (u.role === "ADMIN") displayRole = "ADMIN";
       else if (u.role === "STAFF") displayRole = "STAFF";
+      else if (u.role === "CLEANER") displayRole = "CLEANER";
       else if (u.role === "PROVIDER" || u.shops.length > 0) displayRole = "SELLER";
 
       return {
@@ -184,6 +186,7 @@ export async function POST(req: NextRequest) {
     let prismaRole: Role = Role.CUSTOMER;
     if (role === "ADMIN") prismaRole = Role.ADMIN;
     else if (role === "STAFF") prismaRole = Role.STAFF;
+    else if (role === "CLEANER") prismaRole = Role.CLEANER;
     else if (role === "SELLER" || role === "PROVIDER") prismaRole = Role.PROVIDER;
 
     const newUser = await prisma.user.create({
@@ -228,6 +231,7 @@ export async function PATCH(req: NextRequest) {
     if (role) {
       if (role === "SELLER") data.role = Role.PROVIDER;
       else if (role === "STAFF") data.role = Role.STAFF;
+      else if (role === "CLEANER") data.role = Role.CLEANER;
       else if (Object.values(Role).includes(role as Role)) {
         data.role = role as Role;
       }
@@ -247,9 +251,10 @@ export async function PATCH(req: NextRequest) {
       },
     });
 
-    let displayRole: "ADMIN" | "SELLER" | "CUSTOMER" | "STAFF" = "CUSTOMER";
+    let displayRole: "ADMIN" | "SELLER" | "CUSTOMER" | "STAFF" | "CLEANER" = "CUSTOMER";
     if (updatedUser.role === "ADMIN") displayRole = "ADMIN";
     else if (updatedUser.role === "STAFF") displayRole = "STAFF";
+    else if (updatedUser.role === "CLEANER") displayRole = "CLEANER";
     else if (updatedUser.role === "PROVIDER" || updatedUser.shops.length > 0) displayRole = "SELLER";
 
     return NextResponse.json({
