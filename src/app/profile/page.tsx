@@ -41,6 +41,8 @@ import {
   FileText,
   UserCheck,
   CheckCircle,
+  Camera,
+  Upload,
 } from "lucide-react";
 
 interface AddressItem {
@@ -147,10 +149,20 @@ export default function ProfilePage() {
     hasReviewed: boolean;
     rating: number | null;
     reviewComment: string | null;
+    reviewImages?: string[];
   }
   const [bookings, setBookings] = useState<BookingHistoryItem[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
   const [selectedOrderDetail, setSelectedOrderDetail] = useState<BookingHistoryItem | null>(null);
+
+  // States modal Đánh giá sản phẩm/dịch vụ
+  const [reviewModalOrder, setReviewModalOrder] = useState<BookingHistoryItem | null>(null);
+  const [reviewRating, setReviewRating] = useState<number>(5);
+  const [reviewHoverRating, setReviewHoverRating] = useState<number>(0);
+  const [reviewComment, setReviewComment] = useState<string>("");
+  const [reviewImages, setReviewImages] = useState<string[]>([]);
+  const [isSubmittingReview, setIsSubmittingReview] = useState<boolean>(false);
+  const [reviewError, setReviewError] = useState<string>("");
 
   // States lọc và sắp xếp lịch sử đơn hàng
   const [orderSearchQuery, setOrderSearchQuery] = useState("");
@@ -226,6 +238,121 @@ export default function ProfilePage() {
       console.error("Lỗi tải lịch sử đơn hàng:", err);
     } finally {
       setLoadingBookings(false);
+    }
+  };
+
+  // Mở modal viết đánh giá
+  const handleOpenReviewModal = (b: BookingHistoryItem) => {
+    setReviewModalOrder(b);
+    setReviewRating(5);
+    setReviewHoverRating(0);
+    setReviewComment("");
+    setReviewImages([]);
+    setReviewError("");
+  };
+
+  // Chọn ảnh cho đánh giá (base64)
+  const handleReviewImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    if (reviewImages.length + files.length > 5) {
+      setReviewError("Bạn chỉ có thể tải lên tối đa 5 hình ảnh cho mỗi đánh giá.");
+      return;
+    }
+
+    setReviewError("");
+    Array.from(files).forEach((file) => {
+      if (!file.type.startsWith("image/")) {
+        setReviewError("Chỉ chấp nhận các tệp hình ảnh (JPG, PNG, WebP...)");
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setReviewError("Kích thước mỗi ảnh không được vượt quá 5MB.");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        if (result) {
+          setReviewImages((prev) => (prev.length < 5 ? [...prev, result] : prev));
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Reset input value để chọn lại cùng file nếu muốn
+    e.target.value = "";
+  };
+
+  // Xóa ảnh đã chọn
+  const handleRemoveReviewImage = (indexToRemove: number) => {
+    setReviewImages((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  // Gửi đánh giá lên server
+  const handleSubmitReview = async () => {
+    if (!reviewModalOrder) return;
+    if (reviewRating < 1 || reviewRating > 5) {
+      setReviewError("Vui lòng chọn số sao từ 1 đến 5 sao.");
+      return;
+    }
+
+    try {
+      setIsSubmittingReview(true);
+      setReviewError("");
+
+      const res = await fetch("/api/auth/profile/bookings/review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bookingId: reviewModalOrder.id,
+          rating: reviewRating,
+          comment: reviewComment.trim() || undefined,
+          images: reviewImages,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setReviewError(data.message || "Gửi đánh giá thất bại. Vui lòng thử lại!");
+        return;
+      }
+
+      // Cập nhật trạng thái đánh giá trong danh sách bookings
+      setBookings((prev) =>
+        prev.map((item) =>
+          item.id === reviewModalOrder.id
+            ? {
+                ...item,
+                hasReviewed: true,
+                rating: reviewRating,
+                reviewComment: reviewComment.trim() || "Dịch vụ rất tốt!",
+                reviewImages: reviewImages,
+              }
+            : item
+        )
+      );
+
+      // Cập nhật nếu đang mở modal chi tiết đơn
+      if (selectedOrderDetail && selectedOrderDetail.id === reviewModalOrder.id) {
+        setSelectedOrderDetail({
+          ...selectedOrderDetail,
+          hasReviewed: true,
+          rating: reviewRating,
+          reviewComment: reviewComment.trim() || "Dịch vụ rất tốt!",
+          reviewImages: reviewImages,
+        });
+      }
+
+      // Đóng modal
+      setReviewModalOrder(null);
+    } catch (err) {
+      console.error("Lỗi gửi đánh giá:", err);
+      setReviewError("Đã xảy ra lỗi mạng khi gửi đánh giá. Vui lòng thử lại!");
+    } finally {
+      setIsSubmittingReview(false);
     }
   };
 
@@ -1214,23 +1341,56 @@ export default function ProfilePage() {
                         </div>
                       </div>
 
+                      {/* Nút hành động đánh giá nếu đơn hàng đã hoàn thành và chưa đánh giá */}
+                      {!b.hasReviewed && b.status === "COMPLETED" && (
+                        <div className="pt-2 flex items-center justify-end">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenReviewModal(b);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+                          >
+                            <Star className="w-3.5 h-3.5 fill-white" />
+                            <span>Đánh giá dịch vụ</span>
+                          </button>
+                        </div>
+                      )}
+
                       {/* Thông tin đánh giá nếu có */}
                       {b.hasReviewed && (
-                        <div className="p-3 bg-amber-50/70 border border-amber-200/70 rounded-xl flex items-start gap-2.5 text-xs text-amber-900">
-                          <div className="flex items-center gap-0.5 shrink-0 pt-0.5 text-amber-500">
-                            {[1, 2, 3, 4, 5].map((s) => (
-                              <Star
-                                key={s}
-                                className={`w-3.5 h-3.5 ${
-                                  (b.rating || 0) >= s ? "fill-amber-400 text-amber-400" : "text-slate-300"
-                                }`}
-                              />
-                            ))}
+                        <div className="p-3 bg-amber-50/70 border border-amber-200/70 rounded-xl space-y-2 text-xs text-amber-900">
+                          <div className="flex items-start gap-2.5">
+                            <div className="flex items-center gap-0.5 shrink-0 pt-0.5 text-amber-500">
+                              {[1, 2, 3, 4, 5].map((s) => (
+                                <Star
+                                  key={s}
+                                  className={`w-3.5 h-3.5 ${
+                                    (b.rating || 0) >= s ? "fill-amber-400 text-amber-400" : "text-slate-300"
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                            <div className="grow">
+                              <span className="font-bold text-amber-800">Đánh giá của bạn: </span>
+                              <span className="italic">&quot;{b.reviewComment || "Rất hài lòng với chất lượng dịch vụ"}&quot;</span>
+                            </div>
                           </div>
-                          <div className="grow">
-                            <span className="font-bold text-amber-800">Đánh giá của bạn: </span>
-                            <span className="italic">&quot;{b.reviewComment || "Rất hài lòng với chất lượng dịch vụ"}&quot;</span>
-                          </div>
+
+                          {/* Hình ảnh đánh giá của khách hàng nếu có */}
+                          {b.reviewImages && b.reviewImages.length > 0 && (
+                            <div className="flex items-center gap-2 pt-1 pl-0.5">
+                              {b.reviewImages.map((img, idx) => (
+                                <div
+                                  key={idx}
+                                  className="w-12 h-12 rounded-lg overflow-hidden border border-amber-200 bg-white shrink-0"
+                                >
+                                  <img src={img} alt={`Review img ${idx + 1}`} className="w-full h-full object-cover" />
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1961,6 +2121,76 @@ export default function ProfilePage() {
                 </div>
               )}
 
+              {/* Đánh giá dịch vụ trong modal chi tiết đơn */}
+              {selectedOrderDetail.status === "COMPLETED" && (
+                <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 font-bold text-xs uppercase tracking-wider text-amber-900">
+                      <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+                      <span>Đánh giá dịch vụ</span>
+                    </div>
+
+                    {!selectedOrderDetail.hasReviewed && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenReviewModal(selectedOrderDetail)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+                      >
+                        <Star className="w-3.5 h-3.5 fill-white" />
+                        <span>Viết đánh giá ngay</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {selectedOrderDetail.hasReviewed ? (
+                    <div className="space-y-2 text-xs text-amber-900 bg-white/70 p-3 rounded-xl border border-amber-200/50">
+                      <div className="flex items-center gap-1 text-amber-500">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star
+                            key={s}
+                            className={`w-4 h-4 ${
+                              (selectedOrderDetail.rating || 0) >= s
+                                ? "fill-amber-400 text-amber-400"
+                                : "text-slate-200"
+                            }`}
+                          />
+                        ))}
+                        <span className="font-bold text-amber-800 ml-1">
+                          ({selectedOrderDetail.rating}.0)
+                        </span>
+                      </div>
+                      <p className="text-slate-800 italic leading-relaxed">
+                        &quot;{selectedOrderDetail.reviewComment || "Rất hài lòng với chất lượng dịch vụ"}&quot;
+                      </p>
+
+                      {/* Ảnh phản hồi */}
+                      {selectedOrderDetail.reviewImages && selectedOrderDetail.reviewImages.length > 0 && (
+                        <div className="pt-2">
+                          <div className="text-[11px] font-bold text-slate-500 mb-1.5">Ảnh bạn đã chụp:</div>
+                          <div className="flex gap-2">
+                            {selectedOrderDetail.reviewImages.map((img, idx) => (
+                              <a
+                                key={idx}
+                                href={img}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="w-14 h-14 rounded-xl overflow-hidden border border-amber-200 bg-white block hover:opacity-90 transition"
+                              >
+                                <img src={img} alt={`Review ${idx + 1}`} className="w-full h-full object-cover" />
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-500">
+                      Đơn hàng của bạn đã hoàn tất! Hãy để lại đánh giá và hình ảnh thực tế để giúp cộng đồng và cải thiện chất lượng dịch vụ nhé.
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Thông tin thanh toán */}
               <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-50 to-blue-50/40 border border-slate-200 space-y-3">
                 <div className="flex items-center justify-between text-xs font-bold text-slate-700 uppercase tracking-wider border-b border-slate-200/60 pb-2">
@@ -2018,6 +2248,190 @@ export default function ProfilePage() {
                 className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-sm transition cursor-pointer"
               >
                 Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL VIẾT ĐÁNH GIÁ KÈM HÌNH ẢNH */}
+      {reviewModalOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 sm:p-7 shadow-2xl border border-slate-100 space-y-5">
+            {/* Header Modal */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                  <Star className="w-5 h-5 fill-amber-500" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Đánh giá dịch vụ</h3>
+                  <p className="text-xs text-slate-500">Mã đơn: #{reviewModalOrder.bookingCode}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReviewModalOrder(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Thông tin dịch vụ đang đánh giá */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-slate-200 overflow-hidden shrink-0">
+                {reviewModalOrder.serviceImage ? (
+                  <img
+                    src={reviewModalOrder.serviceImage}
+                    alt={reviewModalOrder.serviceTitle}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-slate-100 text-slate-400">
+                    <ShoppingBag className="w-5 h-5" />
+                  </div>
+                )}
+              </div>
+              <div className="grow min-w-0">
+                <h4 className="font-bold text-xs sm:text-sm text-slate-900 truncate">
+                  {reviewModalOrder.serviceTitle}
+                </h4>
+                <p className="text-[11px] text-slate-500">
+                  Đơn vị: <strong className="text-slate-700">{reviewModalOrder.shopName}</strong>
+                </p>
+              </div>
+            </div>
+
+            {/* Chọn số sao */}
+            <div className="text-center py-2 space-y-2">
+              <div className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Mức độ hài lòng của bạn
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                {[1, 2, 3, 4, 5].map((star) => {
+                  const isFilled = (reviewHoverRating || reviewRating) >= star;
+                  return (
+                    <button
+                      key={star}
+                      type="button"
+                      onMouseEnter={() => setReviewHoverRating(star)}
+                      onMouseLeave={() => setReviewHoverRating(0)}
+                      onClick={() => setReviewRating(star)}
+                      className="p-1 cursor-pointer transition hover:scale-110 focus:outline-none"
+                    >
+                      <Star
+                        className={`w-8 h-8 ${
+                          isFilled
+                            ? "fill-amber-400 text-amber-400"
+                            : "text-slate-200 hover:text-amber-200"
+                        } transition-colors`}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="text-xs font-bold text-amber-700">
+                {reviewRating === 5 && "⭐ Tuyệt vời - Rất hài lòng"}
+                {reviewRating === 4 && "⭐ Tốt - Hài lòng"}
+                {reviewRating === 3 && "⭐ Bình thường - Tạm ổn"}
+                {reviewRating === 2 && "⭐ Chưa hài lòng"}
+                {reviewRating === 1 && "⭐ Rất không hài lòng"}
+              </div>
+            </div>
+
+            {/* Viết nhận xét chi tiết */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700">
+                Nhận xét chi tiết <span className="text-slate-400 font-normal">(không bắt buộc)</span>:
+              </label>
+              <textarea
+                rows={3}
+                value={reviewComment}
+                onChange={(e) => setReviewComment(e.target.value)}
+                placeholder="Chia sẻ trải nghiệm của bạn về chất lượng dịch vụ, thái độ nhân viên, độ đúng giờ hoặc giá cả..."
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 outline-none transition resize-none"
+              />
+            </div>
+
+            {/* Tải ảnh đính kèm (Tối đa 5 ảnh) */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <Camera className="w-4 h-4 text-slate-500" />
+                  <span>Hình ảnh thực tế đính kèm:</span>
+                </label>
+                <span className="text-[11px] text-slate-400">({reviewImages.length}/5 ảnh)</span>
+              </div>
+
+              {/* Grid hiển thị ảnh và nút upload */}
+              <div className="flex flex-wrap gap-2.5 items-center">
+                {reviewImages.map((img, idx) => (
+                  <div
+                    key={idx}
+                    className="relative w-16 h-16 rounded-xl overflow-hidden border border-slate-200 group"
+                  >
+                    <img src={img} alt={`Upload ${idx + 1}`} className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveReviewImage(idx)}
+                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-slate-900/70 hover:bg-rose-600 text-white flex items-center justify-center transition cursor-pointer"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+
+                {reviewImages.length < 5 && (
+                  <label className="w-16 h-16 rounded-xl border-2 border-dashed border-slate-300 hover:border-amber-500 hover:bg-amber-50/50 flex flex-col items-center justify-center text-slate-400 hover:text-amber-600 transition cursor-pointer">
+                    <Upload className="w-5 h-5 mb-0.5" />
+                    <span className="text-[10px] font-semibold">Thêm ảnh</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleReviewImageUpload}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
+
+            {/* Thông báo lỗi nếu có */}
+            {reviewError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-medium">
+                {reviewError}
+              </div>
+            )}
+
+            {/* Nút gửi đánh giá */}
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={isSubmittingReview}
+                onClick={() => setReviewModalOrder(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer disabled:opacity-50"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                disabled={isSubmittingReview}
+                onClick={handleSubmitReview}
+                className="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {isSubmittingReview ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Đang gửi...</span>
+                  </>
+                ) : (
+                  <>
+                    <Star className="w-3.5 h-3.5 fill-white" />
+                    <span>Gửi đánh giá</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

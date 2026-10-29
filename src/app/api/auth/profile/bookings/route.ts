@@ -132,6 +132,11 @@ export async function GET(req: NextRequest) {
         hasReviewed: Boolean(b.review),
         rating: b.review?.rating || null,
         reviewComment: b.review?.comment || null,
+        reviewImages: Array.isArray(b.review?.images)
+          ? (b.review?.images as string[])
+          : typeof b.review?.images === "string"
+          ? [b.review?.images]
+          : [],
       };
     });
 
