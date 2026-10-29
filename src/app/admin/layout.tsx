@@ -20,6 +20,7 @@ import {
   AlertCircle,
   CheckCircle2,
   MessageSquare,
+  AlertTriangle,
 } from "lucide-react";
 
 interface CurrentUser {
@@ -195,6 +196,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (pathname.startsWith("/admin/reviews")) {
       return viewMode === "ADMIN" ? "Quản lý Bình luận & Đánh giá khách hàng" : "Phản hồi & Cảm xúc khách hàng";
     }
+    if (pathname.startsWith("/admin/reports")) {
+      return "Quản lý Báo cáo Vi phạm & Sự cố giao hàng";
+    }
     return isProviderOnly ? "Kênh Quản Trị Gian Hàng Đối Tác" : "Quản Trị Hệ Thống CleanMate";
   };
 
@@ -247,6 +251,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       icon: MessageSquare,
       adminOnly: false,
       isActive: pathname.startsWith("/admin/reviews"),
+    },
+    {
+      label: "Quản lý Báo cáo",
+      href: "/admin/reports",
+      icon: AlertTriangle,
+      adminOnly: true,
+      isActive: pathname.startsWith("/admin/reports"),
     },
   ];
 

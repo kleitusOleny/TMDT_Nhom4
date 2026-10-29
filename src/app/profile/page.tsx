@@ -43,6 +43,10 @@ import {
   CheckCircle,
   Camera,
   Upload,
+  AlertTriangle,
+  Send,
+  UserX,
+  Truck,
 } from "lucide-react";
 
 interface AddressItem {
@@ -163,6 +167,16 @@ export default function ProfilePage() {
   const [reviewImages, setReviewImages] = useState<string[]>([]);
   const [isSubmittingReview, setIsSubmittingReview] = useState<boolean>(false);
   const [reviewError, setReviewError] = useState<string>("");
+
+  // States modal Báo cáo sự cố giao hàng / Báo cáo người dùng
+  const [reportModalOrder, setReportModalOrder] = useState<BookingHistoryItem | null>(null);
+  const [reportType, setReportType] = useState<"DELIVERY" | "CUSTOMER">("DELIVERY");
+  const [reportTitle, setReportTitle] = useState("");
+  const [reportDetails, setReportDetails] = useState("");
+  const [reportImages, setReportImages] = useState<string[]>([]);
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [reportError, setReportError] = useState("");
+  const [reportSuccess, setReportSuccess] = useState("");
 
   // States lọc và sắp xếp lịch sử đơn hàng
   const [orderSearchQuery, setOrderSearchQuery] = useState("");
@@ -353,6 +367,104 @@ export default function ProfilePage() {
       setReviewError("Đã xảy ra lỗi mạng khi gửi đánh giá. Vui lòng thử lại!");
     } finally {
       setIsSubmittingReview(false);
+    }
+  };
+
+  // Mở modal gửi Báo cáo giao hàng / Báo cáo người dùng
+  const handleOpenReportModal = (b: BookingHistoryItem, type: "DELIVERY" | "CUSTOMER") => {
+    setReportModalOrder(b);
+    setReportType(type);
+    setReportTitle(
+      type === "DELIVERY"
+        ? `Sự cố thực hiện đơn #${b.bookingCode}`
+        : `Báo cáo hành vi người dùng liên quan đơn #${b.bookingCode}`
+    );
+    setReportDetails("");
+    setReportImages([]);
+    setReportError("");
+    setReportSuccess("");
+  };
+
+  // Upload ảnh bằng chứng báo cáo (base64)
+  const handleReportImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    if (reportImages.length + files.length > 5) {
+      setReportError("Bạn chỉ có thể tải lên tối đa 5 hình ảnh làm bằng chứng.");
+      return;
+    }
+
+    setReportError("");
+    Array.from(files).forEach((file) => {
+      if (!file.type.startsWith("image/")) {
+        setReportError("Chỉ chấp nhận các tệp hình ảnh");
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setReportError("Kích thước mỗi ảnh không được vượt quá 5MB.");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        if (result) {
+          setReportImages((prev) => (prev.length < 5 ? [...prev, result] : prev));
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    e.target.value = "";
+  };
+
+  // Gửi báo cáo lên server
+  const handleSubmitReport = async () => {
+    if (!reportModalOrder) return;
+    if (!reportDetails.trim()) {
+      setReportError("Vui lòng nhập chi tiết sự cố hoặc lý do báo cáo.");
+      return;
+    }
+
+    try {
+      setIsSubmittingReport(true);
+      setReportError("");
+
+      const res = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: reportType,
+          title: reportTitle.trim(),
+          details: reportDetails.trim(),
+          bookingCode: reportModalOrder.bookingCode,
+          targetName:
+            reportType === "DELIVERY"
+              ? reportModalOrder.serviceTitle
+              : reportModalOrder.cleaner?.fullName || reportModalOrder.shopName,
+          reportedUserId: reportModalOrder.cleaner?.id,
+          reportedShopId: reportModalOrder.shopId,
+          images: reportImages,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setReportError(data.message || "Gửi báo cáo thất bại");
+        return;
+      }
+
+      setReportSuccess("Đã gửi báo cáo thành công! Ban quản trị sẽ nhanh chóng liên hệ xác minh.");
+      setTimeout(() => {
+        setReportModalOrder(null);
+        setReportSuccess("");
+      }, 1500);
+    } catch (err) {
+      console.error(err);
+      setReportError("Lỗi kết nối khi gửi báo cáo.");
+    } finally {
+      setIsSubmittingReport(false);
     }
   };
 
@@ -1341,9 +1453,21 @@ export default function ProfilePage() {
                         </div>
                       </div>
 
-                      {/* Nút hành động đánh giá nếu đơn hàng đã hoàn thành và chưa đánh giá */}
-                      {!b.hasReviewed && b.status === "COMPLETED" && (
-                        <div className="pt-2 flex items-center justify-end">
+                      {/* Nút hành động đánh giá & Báo cáo sự cố */}
+                      <div className="pt-2 flex flex-wrap items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenReportModal(b, "DELIVERY");
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 rounded-xl text-xs font-semibold transition border border-slate-200 cursor-pointer"
+                        >
+                          <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
+                          <span>Báo cáo sự cố</span>
+                        </button>
+
+                        {!b.hasReviewed && b.status === "COMPLETED" && (
                           <button
                             type="button"
                             onClick={(e) => {
@@ -1355,8 +1479,8 @@ export default function ProfilePage() {
                             <Star className="w-3.5 h-3.5 fill-white" />
                             <span>Đánh giá dịch vụ</span>
                           </button>
-                        </div>
-                      )}
+                        )}
+                      </div>
 
                       {/* Thông tin đánh giá nếu có */}
                       {b.hasReviewed && (
@@ -2241,7 +2365,31 @@ export default function ProfilePage() {
             </div>
 
             {/* Footer Modal */}
-            <div className="pt-6 mt-6 border-t border-slate-100 flex items-center justify-end">
+            <div className="pt-6 mt-6 border-t border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleOpenReportModal(selectedOrderDetail, "DELIVERY");
+                  }}
+                  className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                >
+                  <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Báo cáo sự cố đơn hàng</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleOpenReportModal(selectedOrderDetail, "CUSTOMER");
+                  }}
+                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                >
+                  <UserX className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Báo cáo người dùng</span>
+                </button>
+              </div>
+
               <button
                 type="button"
                 onClick={() => setSelectedOrderDetail(null)}
@@ -2430,6 +2578,197 @@ export default function ProfilePage() {
                   <>
                     <Star className="w-3.5 h-3.5 fill-white" />
                     <span>Gửi đánh giá</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL GỬI BÁO CÁO GIAO HÀNG / BÁO CÁO NGƯỜI DÙNG */}
+      {reportModalOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 sm:p-7 shadow-2xl border border-slate-100 space-y-5">
+            {/* Header Modal */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
+                  {reportType === "DELIVERY" ? <Truck className="w-5 h-5" /> : <UserX className="w-5 h-5" />}
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    {reportType === "DELIVERY" ? "Báo cáo sự cố đơn hàng / giao việc" : "Báo cáo hành vi người dùng"}
+                  </h3>
+                  <p className="text-xs text-slate-500">Mã đơn: #{reportModalOrder.bookingCode}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReportModalOrder(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Chuyển đổi loại báo cáo */}
+            <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl">
+              <button
+                type="button"
+                onClick={() => {
+                  setReportType("DELIVERY");
+                  setReportTitle(`Sự cố thực hiện đơn #${reportModalOrder.bookingCode}`);
+                }}
+                className={`py-2 text-xs font-bold rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                  reportType === "DELIVERY"
+                    ? "bg-white text-blue-700 shadow-2xs"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <Truck className="w-3.5 h-3.5" />
+                <span>Sự cố đơn hàng</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setReportType("CUSTOMER");
+                  setReportTitle(`Báo cáo hành vi liên quan đơn #${reportModalOrder.bookingCode}`);
+                }}
+                className={`py-2 text-xs font-bold rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                  reportType === "CUSTOMER"
+                    ? "bg-white text-amber-700 shadow-2xs"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <UserX className="w-3.5 h-3.5" />
+                <span>Báo cáo người dùng</span>
+              </button>
+            </div>
+
+            {/* Thông tin đối tượng bị phản ánh */}
+            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 text-xs space-y-1">
+              <div className="text-slate-500 font-medium">Đối tượng liên quan:</div>
+              <div className="font-bold text-slate-800">
+                {reportType === "DELIVERY" ? (
+                  <span>Dịch vụ: {reportModalOrder.serviceTitle} ({reportModalOrder.shopName})</span>
+                ) : (
+                  <span>
+                    {reportModalOrder.cleaner
+                      ? `Nhân viên thực hiện: ${reportModalOrder.cleaner.fullName} (${reportModalOrder.cleaner.phone})`
+                      : `Đơn vị cung cấp: ${reportModalOrder.shopName}`}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Tiêu đề sự cố */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700">Tiêu đề sự cố / vi phạm:</label>
+              <input
+                type="text"
+                value={reportTitle}
+                onChange={(e) => setReportTitle(e.target.value)}
+                placeholder="VD: Nhân viên đến muộn, Hàng hóa hỏng hóc, Thái độ không đúng mực..."
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-rose-500 outline-none transition"
+              />
+            </div>
+
+            {/* Chi tiết nội dung báo cáo */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700">
+                Mô tả chi tiết nội dung sự việc <span className="text-rose-500">*</span>:
+              </label>
+              <textarea
+                rows={4}
+                value={reportDetails}
+                onChange={(e) => setReportDetails(e.target.value)}
+                placeholder="Hãy miêu tả chi tiết những gì đã xảy ra, thời gian cụ thể và thỏa thuận giữa hai bên để Admin hỗ trợ nhanh chóng nhất..."
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-rose-500 outline-none transition resize-none"
+              />
+            </div>
+
+            {/* Upload ảnh bằng chứng */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <Camera className="w-4 h-4 text-slate-500" />
+                  <span>Hình ảnh bằng chứng đính kèm:</span>
+                </label>
+                <span className="text-[11px] text-slate-400">({reportImages.length}/5 ảnh)</span>
+              </div>
+
+              <div className="flex flex-wrap gap-2.5 items-center">
+                {reportImages.map((img, idx) => (
+                  <div
+                    key={idx}
+                    className="relative w-16 h-16 rounded-xl overflow-hidden border border-slate-200 group"
+                  >
+                    <img src={img} alt={`Evidence ${idx + 1}`} className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setReportImages((prev) => prev.filter((_, i) => i !== idx))}
+                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-slate-900/70 hover:bg-rose-600 text-white flex items-center justify-center transition cursor-pointer"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+
+                {reportImages.length < 5 && (
+                  <label className="w-16 h-16 rounded-xl border-2 border-dashed border-slate-300 hover:border-rose-500 hover:bg-rose-50/50 flex flex-col items-center justify-center text-slate-400 hover:text-rose-600 transition cursor-pointer">
+                    <Upload className="w-5 h-5 mb-0.5" />
+                    <span className="text-[10px] font-semibold">Thêm ảnh</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleReportImageUpload}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
+
+            {/* Thông báo lỗi / thành công */}
+            {reportError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-medium">
+                {reportError}
+              </div>
+            )}
+            {reportSuccess && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700 font-medium">
+                {reportSuccess}
+              </div>
+            )}
+
+            {/* Nút gửi */}
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={isSubmittingReport}
+                onClick={() => setReportModalOrder(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer disabled:opacity-50"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                disabled={isSubmittingReport}
+                onClick={handleSubmitReport}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {isSubmittingReport ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Đang gửi...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Gửi báo cáo</span>
                   </>
                 )}
               </button>
