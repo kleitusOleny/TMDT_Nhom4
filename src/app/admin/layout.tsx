@@ -21,6 +21,7 @@ import {
   CheckCircle2,
   MessageSquare,
   AlertTriangle,
+  TicketPercent,
 } from "lucide-react";
 
 interface CurrentUser {
@@ -196,6 +197,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (pathname.startsWith("/admin/reviews")) {
       return viewMode === "ADMIN" ? "Quản lý Bình luận & Đánh giá khách hàng" : "Phản hồi & Cảm xúc khách hàng";
     }
+    if (pathname.startsWith("/admin/promotions")) {
+      return viewMode === "ADMIN" ? "Quản lý Mã giảm giá & Khuyến mãi (Voucher)" : "Mã ưu đãi của Gian hàng";
+    }
     if (pathname.startsWith("/admin/reports")) {
       return "Quản lý Báo cáo Vi phạm & Sự cố giao hàng";
     }
@@ -251,6 +255,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       icon: MessageSquare,
       adminOnly: false,
       isActive: pathname.startsWith("/admin/reviews"),
+    },
+    {
+      label: isProviderOnly || viewMode === "SELLER" ? "Mã giảm giá Shop" : "Quản lý Mã giảm giá",
+      href: "/admin/promotions",
+      icon: TicketPercent,
+      adminOnly: false,
+      isActive: pathname.startsWith("/admin/promotions"),
     },
     {
       label: "Quản lý Báo cáo",

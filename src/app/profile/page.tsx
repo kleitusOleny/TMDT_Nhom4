@@ -47,6 +47,7 @@ import {
   Send,
   UserX,
   Truck,
+  TicketPercent,
 } from "lucide-react";
 
 interface AddressItem {
@@ -2352,6 +2353,32 @@ export default function ProfilePage() {
                       <span>+{Number(selectedOrderDetail.tipAmount).toLocaleString()}đ</span>
                     </div>
                   )}
+
+                  {/* Hiển thị Mã giảm giá đã áp dụng */}
+                  {(() => {
+                    const match = selectedOrderDetail.note?.match(
+                      /\[Áp dụng mã ([A-Za-z0-9_-]+)(?: - Giảm ([^\]]+))?\]/
+                    );
+                    if (!match) return null;
+                    return (
+                      <div className="p-2.5 bg-rose-50 border border-rose-200/80 rounded-xl space-y-1 my-1">
+                        <div className="flex items-center justify-between text-rose-700">
+                          <span className="font-bold flex items-center gap-1">
+                            <TicketPercent className="w-3.5 h-3.5" /> Mã ưu đãi:
+                          </span>
+                          <span className="font-mono font-black text-xs px-2 py-0.5 bg-white rounded-md border border-rose-300">
+                            {match[1]}
+                          </span>
+                        </div>
+                        {match[2] && (
+                          <div className="text-[11px] text-rose-600 font-semibold text-right">
+                            Tiết kiệm: -{match[2]}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-sm">
                     <span className="font-bold text-slate-900">Tổng thanh toán:</span>
                     <span className="font-black text-blue-600 text-lg">

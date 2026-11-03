@@ -1,7 +1,7 @@
 import React from "react";
 import { UserRecord, ProviderRecord, ServiceRecord, BookingRecord } from "@/src/lib/admin-data";
 import { formatDateVN } from "@/src/lib/date-utils";
-import { X, User, Building2, Plus, Trash2, MapPin, Calendar, CreditCard, Star, ShoppingBag, Eye, Phone, Mail, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { X, User, Building2, Plus, Trash2, MapPin, Calendar, CreditCard, Star, ShoppingBag, Eye, Phone, Mail, ShieldCheck, CheckCircle2, TicketPercent } from "lucide-react";
 
 // Format VNĐ
 const formatVND = (num: number) => {
@@ -30,6 +30,17 @@ export function BookingDetailModal({
   onClose: () => void;
   onUpdateStatus: (bookingId: string, status: "CONFIRMED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED") => void;
 }) {
+  // Trích xuất thông tin mã giảm giá / voucher nếu có trong note
+  let voucherInfo: { code: string; discountText?: string } | null = null;
+  if (booking.note) {
+    const match = booking.note.match(/\[Áp dụng mã ([A-Za-z0-9_-]+)(?: - Giảm ([^\]]+))?\]/);
+    if (match) {
+      voucherInfo = {
+        code: match[1],
+        discountText: match[2],
+      };
+    }
+  }
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-2xl rounded-2xl p-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto space-y-6">
@@ -119,6 +130,26 @@ export function BookingDetailModal({
               <span className="text-slate-500">Trạng thái thanh toán:</span>
               <span className="font-semibold text-emerald-600">{booking.paymentStatus || "Đã xác nhận"}</span>
             </div>
+
+            {/* Hiển thị Mã giảm giá nếu có */}
+            {voucherInfo && (
+              <div className="p-2.5 bg-rose-50 border border-rose-200/80 rounded-xl space-y-1">
+                <div className="flex items-center justify-between text-rose-700">
+                  <span className="font-bold flex items-center gap-1">
+                    <TicketPercent className="w-3.5 h-3.5" /> Mã ưu đãi:
+                  </span>
+                  <span className="font-mono font-black text-xs px-2 py-0.5 bg-white rounded-md border border-rose-300">
+                    {voucherInfo.code}
+                  </span>
+                </div>
+                {voucherInfo.discountText && (
+                  <div className="text-[11px] text-rose-600 font-semibold text-right">
+                    Tiết kiệm: -{voucherInfo.discountText}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="pt-2 border-t border-slate-200 space-y-1.5">
               <div className="flex justify-between">
                 <span className="text-slate-500">Tổng tiền thu khách:</span>
