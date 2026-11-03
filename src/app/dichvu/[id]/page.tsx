@@ -663,6 +663,7 @@ function DichVuContent({ serviceId }: { serviceId: string }) {
                                   src={typeof imgSrc === "string" ? imgSrc : ""}
                                   alt="Ảnh phản hồi"
                                   fill
+                                  unoptimized
                                   className="object-cover"
                                 />
                               </div>

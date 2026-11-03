@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/src/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/src/app/api/auth/[...nextauth]/route";
+import { saveBase64Image } from "@/src/lib/upload-image";
 
 async function getAuthenticatedUserId(req: NextRequest): Promise<number | null> {
   const sessionCookie = req.cookies.get("cleanmate_session")?.value;
@@ -97,12 +98,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Xử lý danh sách hình ảnh (lọc url/base64 hợp lệ)
-    let processedImages: string[] = [];
+    // Xử lý danh sách hình ảnh (lưu base64 vào file public/uploads/reviews/)
+    const processedImages: string[] = [];
     if (Array.isArray(images)) {
-      processedImages = images
+      const validImages = images
         .filter((img) => typeof img === "string" && img.trim().length > 0)
         .slice(0, 5); // Cho phép tối đa 5 ảnh
+
+      for (let i = 0; i < validImages.length; i++) {
+        const img = validImages[i];
+        if (img.startsWith("data:image/")) {
+          const savedUrl = await saveBase64Image(img, `rev-${parsedBookingId}-${i}`);
+          processedImages.push(savedUrl);
+        } else {
+          processedImages.push(img);
+        }
+      }
     }
 
     // 2. Tạo bản ghi Review
