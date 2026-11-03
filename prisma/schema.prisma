@@ -75,6 +75,16 @@ enum ReportStatus {
   REJECTED
 }
 
+enum DiscountType {
+  PERCENT
+  FIXED
+}
+
+enum PromotionScope {
+  GLOBAL
+  SHOP
+}
+
 // ================= MODELS =================
 
 model User {
@@ -170,6 +180,7 @@ model Shop {
   
   services       DichVu[]
   reports        Report[]
+  promotions     Promotion[]
   
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
@@ -357,6 +368,33 @@ model Notification {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   createdAt DateTime @default(now())
+}
+
+// ----------------- KHUYẾN MÃI (PROMOTION / VOUCHER) -----------------
+model Promotion {
+  id             Int            @id @default(autoincrement())
+  code           String         @unique @db.VarChar(50)
+  title          String
+  description    String?        @db.Text
+  discountType   DiscountType   @default(PERCENT)
+  discountValue  Decimal        @db.Decimal(10, 2)
+  minOrderValue  Decimal        @default(0) @db.Decimal(10, 2)
+  maxDiscount    Decimal?       @db.Decimal(10, 2)
+  startDate      DateTime       @default(now())
+  endDate        DateTime
+  usageLimit     Int?
+  usedCount      Int            @default(0)
+  isActive       Boolean        @default(true)
+
+  scope          PromotionScope @default(GLOBAL)
+  shopId         Int?
+  shop           Shop?          @relation(fields: [shopId], references: [id])
+
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([code])
+  @@index([shopId])
 }
 
 // ----------------- KHIẾU NẠI (TICKET) -----------------

@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
       phone,
       paymentMethod = "CASH", // Chỉ hỗ trợ CASH hoặc VNPAY
       customerNote,
+      voucherCode,
     } = body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -75,6 +76,55 @@ export async function POST(req: NextRequest) {
     let grandTotal = 0;
     const firstTxnRef = `CM${Date.now()}`;
 
+    // Tính tổng tiền gốc trước khi trừ voucher
+    let rawGrandTotal = 0;
+    for (const item of items) {
+      const s = await prisma.dichVu.findUnique({
+        where: { id: Number(item.serviceId) },
+        select: { priceStart: true },
+      });
+      const qty = Math.max(1, Number(item.quantity) || 1);
+      const unitP = item.price ? Number(item.price) : Number(s?.priceStart || 0);
+      rawGrandTotal += unitP * qty;
+    }
+
+    // Kiểm tra & áp dụng giảm giá Voucher nếu có
+    let totalDiscount = 0;
+    let appliedPromotion = null;
+    if (voucherCode && typeof voucherCode === "string" && voucherCode.trim()) {
+      const p = await prisma.promotion.findUnique({
+        where: { code: voucherCode.trim().toUpperCase() },
+      });
+      const now = new Date();
+      if (
+        p &&
+        p.isActive &&
+        p.startDate <= now &&
+        p.endDate >= now &&
+        (p.usageLimit === null || p.usedCount < p.usageLimit) &&
+        rawGrandTotal >= Number(p.minOrderValue)
+      ) {
+        appliedPromotion = p;
+        if (p.discountType === "PERCENT") {
+          totalDiscount = (rawGrandTotal * Number(p.discountValue)) / 100;
+          if (p.maxDiscount && totalDiscount > Number(p.maxDiscount)) {
+            totalDiscount = Number(p.maxDiscount);
+          }
+        } else {
+          totalDiscount = Number(p.discountValue);
+        }
+        if (totalDiscount > rawGrandTotal) {
+          totalDiscount = rawGrandTotal;
+        }
+
+        // Tăng usedCount của promotion
+        await prisma.promotion.update({
+          where: { id: p.id },
+          data: { usedCount: { increment: 1 } },
+        });
+      }
+    }
+
     // Tạo booking cho từng dịch vụ được đặt
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
@@ -87,14 +137,22 @@ export async function POST(req: NextRequest) {
 
       const qty = Math.max(1, Number(item.quantity) || 1);
       const unitPrice = item.price ? Number(item.price) : Number(service.priceStart);
-      const totalPrice = unitPrice * qty;
+      let totalPrice = unitPrice * qty;
+
+      // Phân bổ giảm giá vào đơn
+      if (rawGrandTotal > 0 && totalDiscount > 0) {
+        const itemDiscountRatio = (totalPrice / rawGrandTotal);
+        const itemDiscount = Math.round(totalDiscount * itemDiscountRatio);
+        totalPrice = Math.max(0, totalPrice - itemDiscount);
+      }
       grandTotal += totalPrice;
 
       const bookingCode = generateBookingCode();
       const scheduledDate = item.scheduledDate ? new Date(item.scheduledDate) : new Date();
 
       const fullAddress = receiverName ? `${receiverName} - ${phone} | ${address}` : `${phone} | ${address}`;
-      const finalNote = [item.note, customerNote].filter(Boolean).join(" | ");
+      const voucherNote = appliedPromotion ? `[Áp dụng mã ${appliedPromotion.code} - Giảm ${totalDiscount.toLocaleString("vi-VN")}đ]` : null;
+      const finalNote = [item.note, customerNote, voucherNote].filter(Boolean).join(" | ");
 
       const transactionId = i === 0 ? firstTxnRef : `${firstTxnRef}-${i}`;
 

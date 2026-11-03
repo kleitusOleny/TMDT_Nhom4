@@ -23,6 +23,11 @@ import {
   CornerDownRight,
   ShoppingBag,
   ShoppingCart,
+  AlertTriangle,
+  Flag,
+  X,
+  Camera,
+  Upload,
 } from "lucide-react";
 
 interface PricingOption {
@@ -171,6 +176,81 @@ function DichVuContent({ serviceId }: { serviceId: string }) {
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [commentError, setCommentError] = useState("");
   const [commentSuccess, setCommentSuccess] = useState("");
+
+  // States Báo cáo gian hàng
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportTitle, setReportTitle] = useState("");
+  const [reportReason, setReportReason] = useState("Gian lận thông tin giá hoặc dịch vụ");
+  const [reportDetails, setReportDetails] = useState("");
+  const [reportImages, setReportImages] = useState<string[]>([]);
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [reportError, setReportError] = useState("");
+  const [reportSuccess, setReportSuccess] = useState("");
+
+  const handleReportImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    if (reportImages.length + files.length > 5) {
+      setReportError("Chỉ có thể tải lên tối đa 5 hình ảnh bằng chứng.");
+      return;
+    }
+    setReportError("");
+    Array.from(files).forEach((file) => {
+      if (!file.type.startsWith("image/")) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const res = event.target?.result as string;
+        if (res) setReportImages((prev) => (prev.length < 5 ? [...prev, res] : prev));
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = "";
+  };
+
+  const handleSubmitReportShop = async () => {
+    if (!dichVu) return;
+    if (!reportDetails.trim()) {
+      setReportError("Vui lòng nhập chi tiết phản ánh.");
+      return;
+    }
+
+    try {
+      setIsSubmittingReport(true);
+      setReportError("");
+
+      const res = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "SHOP",
+          title: reportTitle.trim() || `Báo cáo gian hàng ${dichVu.shop.name}: ${reportReason}`,
+          details: `[Lý do: ${reportReason}] ${reportDetails.trim()}`,
+          targetName: dichVu.shop.name,
+          reportedShopId: dichVu.shop.id,
+          images: reportImages,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setReportError(data.message || "Gửi báo cáo thất bại.");
+        return;
+      }
+
+      setReportSuccess("Cảm ơn bạn! Báo cáo vi phạm đã được gửi tới Ban quản trị CleanMate.");
+      setTimeout(() => {
+        setIsReportModalOpen(false);
+        setReportSuccess("");
+        setReportDetails("");
+        setReportImages([]);
+      }, 1500);
+    } catch (err) {
+      console.error(err);
+      setReportError("Lỗi kết nối khi gửi báo cáo.");
+    } finally {
+      setIsSubmittingReport(false);
+    }
+  };
 
   const fetchDichVu = async () => {
     if (!serviceId) return;
@@ -346,15 +426,32 @@ function DichVuContent({ serviceId }: { serviceId: string }) {
 
             {/* Thông tin nhà cung cấp & Tiêu đề dịch vụ từ Database */}
             <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm font-bold text-slate-800">
-                  {dichVu.shop.name}
-                </span>
-                {dichVu.shop.approvalStatus === "APPROVED" && (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Đã xác thực
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-slate-800">
+                    {dichVu.shop.name}
                   </span>
-                )}
+                  {dichVu.shop.approvalStatus === "APPROVED" && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Đã xác thực
+                    </span>
+                  )}
+                </div>
+
+                {/* NÚT BÁO CÁO GIAN HÀNG */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsReportModalOpen(true);
+                    setReportTitle(`Báo cáo vi phạm gian hàng ${dichVu.shop.name}`);
+                    setReportError("");
+                    setReportSuccess("");
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 transition cursor-pointer"
+                >
+                  <Flag className="w-3.5 h-3.5 text-rose-500" />
+                  <span>Báo cáo gian hàng</span>
+                </button>
               </div>
 
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mb-3">
@@ -915,6 +1012,145 @@ function DichVuContent({ serviceId }: { serviceId: string }) {
           </div>
         </div>
       </main>
+      {/* MODAL BÁO CÁO GIAN HÀNG / DỊCH VỤ */}
+      {isReportModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 sm:p-7 shadow-2xl border border-slate-100 space-y-5">
+            {/* Header Modal */}
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
+                  <Flag className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Báo cáo gian hàng vi phạm</h3>
+                  <p className="text-xs text-slate-500">{dichVu.shop.name}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsReportModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Chọn lý do báo cáo */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700">Lý do báo cáo vi phạm:</label>
+              <select
+                value={reportReason}
+                onChange={(e) => setReportReason(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-800 outline-none focus:border-rose-500 cursor-pointer"
+              >
+                <option value="Gian lận thông tin giá hoặc dịch vụ">Gian lận thông tin giá hoặc dịch vụ</option>
+                <option value="Hình ảnh và nội dung sai sự thật">Hình ảnh và nội dung sai sự thật</option>
+                <option value="Thái độ phục vụ khiếm nhã, thiếu chuyên nghiệp">Thái độ phục vụ khiếm nhã, thiếu chuyên nghiệp</option>
+                <option value="Có dấu hiệu lừa đảo, chiếm đoạt tiền đặt cọc">Có dấu hiệu lừa đảo, chiếm đoạt tiền</option>
+                <option value="Vi phạm điều khoản dịch vụ CleanMate">Vi phạm điều khoản dịch vụ CleanMate</option>
+                <option value="Lý do khác">Lý do khác</option>
+              </select>
+            </div>
+
+            {/* Chi tiết nội dung phản ánh */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700">
+                Chi tiết vi phạm <span className="text-rose-500">*</span>:
+              </label>
+              <textarea
+                rows={4}
+                value={reportDetails}
+                onChange={(e) => setReportDetails(e.target.value)}
+                placeholder="Mô tả cụ thể hành vi vi phạm hoặc sự việc xảy ra để Admin xác minh..."
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-rose-500 outline-none transition resize-none"
+              />
+            </div>
+
+            {/* Tải ảnh bằng chứng */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <Camera className="w-4 h-4 text-slate-500" />
+                  <span>Ảnh chụp bằng chứng đính kèm:</span>
+                </label>
+                <span className="text-[11px] text-slate-400">({reportImages.length}/5 ảnh)</span>
+              </div>
+
+              <div className="flex flex-wrap gap-2.5 items-center">
+                {reportImages.map((img, idx) => (
+                  <div key={idx} className="relative w-16 h-16 rounded-xl overflow-hidden border border-slate-200">
+                    <img src={img} alt={`Evidence ${idx + 1}`} className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setReportImages((prev) => prev.filter((_, i) => i !== idx))}
+                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-slate-900/70 hover:bg-rose-600 text-white flex items-center justify-center transition cursor-pointer"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+
+                {reportImages.length < 5 && (
+                  <label className="w-16 h-16 rounded-xl border-2 border-dashed border-slate-300 hover:border-rose-500 hover:bg-rose-50/50 flex flex-col items-center justify-center text-slate-400 hover:text-rose-600 transition cursor-pointer">
+                    <Upload className="w-5 h-5 mb-0.5" />
+                    <span className="text-[10px] font-semibold">Thêm ảnh</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleReportImageUpload}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
+
+            {/* Báo lỗi / thành công */}
+            {reportError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-medium">
+                {reportError}
+              </div>
+            )}
+            {reportSuccess && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700 font-medium">
+                {reportSuccess}
+              </div>
+            )}
+
+            {/* Footer Buttons */}
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={isSubmittingReport}
+                onClick={() => setIsReportModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer disabled:opacity-50"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                disabled={isSubmittingReport}
+                onClick={handleSubmitReportShop}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {isSubmittingReport ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Đang gửi...</span>
+                  </>
+                ) : (
+                  <>
+                    <Flag className="w-3.5 h-3.5" />
+                    <span>Gửi báo cáo</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
