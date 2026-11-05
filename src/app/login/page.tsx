@@ -75,8 +75,7 @@ export default function LoginPage() {
         } else {
           router.push("/");
         }
-        router.refresh();
-      }, 1000);
+        }, 500);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Đã xảy ra lỗi, vui lòng thử lại.";
       setErrorMessage(msg);

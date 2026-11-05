@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useTransition } from "react";
+import React, { createContext, useContext, useState, useEffect, useTransition, useMemo, useRef, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -69,15 +69,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const showToast = (msg: string) => {
+  const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
-  };
+  }, []);
 
   const isProviderOnly = currentUser?.role === "PROVIDER";
 
+  const hasVerified = useRef(false);
+
   // Xác thực quyền truy cập: Hỗ trợ cả ADMIN và PROVIDER
   useEffect(() => {
+    if (hasVerified.current) return;
+    hasVerified.current = true;
     let isCancelled = false;
     async function verifyRole() {
       try {
@@ -138,7 +142,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return () => {
       isCancelled = true;
     };
-  }, [router]);
+  }, []);
 
   // Bảo vệ route nếu PROVIDER cố tình truy cập vào các trang chỉ dành riêng cho ADMIN (/admin/users, /admin/providers)
   useEffect(() => {
@@ -148,6 +152,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       }
     }
   }, [isProviderOnly, pathname, router]);
+
+  const contextValue = useMemo(() => ({
+    viewMode: isProviderOnly ? "SELLER" : viewMode,
+    setViewMode: isProviderOnly ? () => {} : setViewMode,
+    selectedSellerId,
+    setSelectedSellerId,
+    shopsList,
+    showToast,
+    currentUser,
+    isProviderOnly,
+  }), [isProviderOnly, viewMode, selectedSellerId, shopsList, showToast, currentUser]);
+
 
   if (isCheckingAuth) {
     return (
@@ -273,18 +289,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   ];
 
   return (
-    <AdminContext.Provider
-      value={{
-        viewMode: isProviderOnly ? "SELLER" : viewMode,
-        setViewMode: isProviderOnly ? () => {} : setViewMode,
-        selectedSellerId,
-        setSelectedSellerId,
-        shopsList,
-        showToast,
-        currentUser,
-        isProviderOnly,
-      }}
-    >
+    <AdminContext.Provider value={contextValue}>
       <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex">
         {/* TOAST THÔNG BÁO */}
         {toastMessage && (
