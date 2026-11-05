@@ -379,7 +379,7 @@ model Notification {
 model Promotion {
   id             Int            @id @default(autoincrement())
   code           String         @unique @db.VarChar(50)
-  title          String
+  title          String         @db.VarChar(255)
   description    String?        @db.Text
   discountType   DiscountType   @default(PERCENT)
   discountValue  Decimal        @db.Decimal(10, 2)
