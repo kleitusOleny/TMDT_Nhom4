@@ -101,6 +101,10 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  // Công ty / Gian hàng trực thuộc (dành cho Cleaner, Staff hoặc Provider)
+  shopId        Int?
+  shop          Shop?          @relation("ShopEmployees", fields: [shopId], references: [id])
+
   // Auth
   accounts      Account[]
   sessions      Session[]
@@ -181,6 +185,7 @@ model Shop {
   services       DichVu[]
   reports        Report[]
   promotions     Promotion[]
+  employees      User[]         @relation("ShopEmployees")
   
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt

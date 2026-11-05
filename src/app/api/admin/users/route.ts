@@ -12,6 +12,9 @@ export async function GET(req: NextRequest) {
       const user = await prisma.user.findUnique({
         where: { id: Number(detailId) },
         include: {
+          shop: {
+            select: { id: true, name: true, slug: true, address: true, area: true },
+          },
           shops: {
             select: { id: true, name: true, slug: true, rating: true, totalReviews: true, approvalStatus: true },
           },
@@ -71,6 +74,8 @@ export async function GET(req: NextRequest) {
           status: user.isActive ? "ACTIVE" : "BLOCKED",
           joinedDate: user.createdAt.toISOString().split("T")[0],
           createdAt: user.createdAt.toISOString(),
+          shopId: user.shopId,
+          shop: user.shop,
           shops: user.shops,
           addresses: user.addresses,
           bookings: user.bookings.map((b) => ({
@@ -137,6 +142,9 @@ export async function GET(req: NextRequest) {
       where,
       orderBy: { createdAt: "desc" },
       include: {
+        shop: {
+          select: { id: true, name: true },
+        },
         shops: {
           select: { id: true, name: true },
           take: 1,
@@ -159,7 +167,8 @@ export async function GET(req: NextRequest) {
         role: displayRole,
         actualRole: u.role,
         status: u.isActive ? ("ACTIVE" as const) : ("BLOCKED" as const),
-        sellerName: u.shops[0]?.name,
+        shopId: u.shopId,
+        sellerName: u.shop?.name || u.shops[0]?.name,
         joinedDate: u.createdAt.toISOString().split("T")[0],
       };
     });
@@ -174,7 +183,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { fullName, phone, email, password, role } = body;
+    const { fullName, phone, email, password, role, shopId } = body;
 
     if (!fullName || (!phone && !email)) {
       return NextResponse.json(
@@ -196,6 +205,7 @@ export async function POST(req: NextRequest) {
         email: email || null,
         password: password || "$2a$10$e7Kvh8Vz4b6nE37P8fUe/eW5G29CsqeI30X.g9.aD9W/jY.vWw6cK",
         role: prismaRole,
+        shopId: shopId ? Number(shopId) : null,
         isActive: true,
       },
     });
@@ -222,7 +232,7 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
-    const { userId, status, role, fullName, phone, email } = body;
+    const { userId, status, role, fullName, phone, email, shopId } = body;
 
     const data: Record<string, unknown> = {};
     if (status !== undefined) {
@@ -239,6 +249,7 @@ export async function PATCH(req: NextRequest) {
     if (fullName !== undefined) data.fullName = fullName;
     if (phone !== undefined) data.phone = phone || null;
     if (email !== undefined) data.email = email || null;
+    if (shopId !== undefined) data.shopId = shopId ? Number(shopId) : null;
 
     const updatedUser = await prisma.user.update({
       where: { id: Number(userId) },

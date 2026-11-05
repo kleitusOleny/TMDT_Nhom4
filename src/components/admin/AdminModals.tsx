@@ -229,18 +229,29 @@ export function BookingDetailModal({
 // 2. MODAL THÊM / SỬA NGƯỜI DÙNG & PHÂN QUYỀN RBAC
 export function UserFormModal({
   user,
+  shops = [],
   onClose,
   onSubmit,
 }: {
   user?: UserRecord | null;
+  shops?: { id: number; name: string }[];
   onClose: () => void;
-  onSubmit: (data: { userId?: number; fullName: string; phone: string; email: string; role: string; status?: string }) => void;
+  onSubmit: (data: {
+    userId?: number;
+    fullName: string;
+    phone: string;
+    email: string;
+    role: string;
+    status?: string;
+    shopId?: number | null;
+  }) => void;
 }) {
   const [fullName, setFullName] = React.useState(user?.fullName || "");
   const [phone, setPhone] = React.useState(user?.phone !== "---" ? user?.phone || "" : "");
   const [email, setEmail] = React.useState(user?.email || "");
   const [role, setRole] = React.useState(user?.actualRole || user?.role || "CUSTOMER");
   const [status, setStatus] = React.useState(user?.status || "ACTIVE");
+  const [shopId, setShopId] = React.useState<number | "">(user?.shopId || "");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -251,6 +262,7 @@ export function UserFormModal({
       email,
       role,
       status,
+      shopId: shopId ? Number(shopId) : null,
     });
   };
 
@@ -326,6 +338,30 @@ export function UserFormModal({
             </select>
           </div>
 
+          {/* Công ty / Gian hàng trực thuộc */}
+          {(role === "CLEANER" || role === "STAFF" || role === "PROVIDER") && (
+            <div>
+              <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                Công ty / Đối tác trực thuộc
+              </label>
+              <select
+                value={shopId}
+                onChange={(e) => setShopId(e.target.value ? Number(e.target.value) : "")}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-blue-600 cursor-pointer font-medium"
+              >
+                <option value="">-- Không trực thuộc công ty nào (Lao động tự do) --</option>
+                {shops.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    🏢 {s.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Nhân viên dọn dẹp sẽ chỉ nhận được các đơn đặt dịch vụ thuộc công ty này.
+              </p>
+            </div>
+          )}
+
           <div>
             <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">
               Trạng thái hoạt động
@@ -384,6 +420,8 @@ export function UserDetailModal({
     totalSpent: number;
     totalBookings: number;
     totalReviews: number;
+    shopId?: number | null;
+    shop?: { id: number; name: string; slug: string; address: string | null; area: string | null } | null;
     shops?: { id: number; name: string; slug: string; rating: number; totalReviews: number; approvalStatus: string }[];
     addresses?: {
       id: number;
@@ -451,8 +489,14 @@ export function UserDetailModal({
                   ID: #{userId}
                 </span>
               </div>
-              <p className="text-xs text-slate-500">
-                {userData?.email || "Chưa có email"} • {userData?.phone || "Chưa có SĐT"} • Tham gia {userData?.joinedDate}
+              <p className="text-xs text-slate-500 flex flex-wrap items-center gap-2">
+                <span>{userData?.email || "Chưa có email"} • {userData?.phone || "Chưa có SĐT"} • Tham gia {userData?.joinedDate}</span>
+                {userData?.shop && (
+                  <span className="font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200 inline-flex items-center gap-1">
+                    <Building2 className="w-3 h-3 text-blue-600" />
+                    <span>Thuộc công ty: {userData.shop.name}</span>
+                  </span>
+                )}
               </p>
             </div>
           </div>

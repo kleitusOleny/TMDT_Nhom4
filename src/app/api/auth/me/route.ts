@@ -54,6 +54,16 @@ export async function GET(req: NextRequest) {
         dateOfBirth: true,
         createdAt: true,
         isActive: true,
+        shopId: true,
+        shop: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            address: true,
+            area: true,
+          },
+        },
         shops: {
           select: {
             id: true,

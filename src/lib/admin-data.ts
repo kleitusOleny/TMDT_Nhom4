@@ -6,6 +6,7 @@ export interface UserRecord {
   role: "ADMIN" | "SELLER" | "CUSTOMER" | "STAFF" | "CLEANER";
   actualRole?: string;
   status: "ACTIVE" | "BLOCKED";
+  shopId?: number | null;
   sellerName?: string;
   joinedDate: string;
 }

@@ -26,7 +26,15 @@ async function getAuthenticatedUser(req: NextRequest) {
   if (!userId) return null;
   return await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, fullName: true, phone: true, email: true, role: true },
+    select: {
+      id: true,
+      fullName: true,
+      phone: true,
+      email: true,
+      role: true,
+      shopId: true,
+      shop: { select: { id: true, name: true } },
+    },
   });
 }
 
@@ -48,8 +56,38 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const filter = searchParams.get("filter") || "ALL"; // ALL | AVAILABLE | IN_PROGRESS | COMPLETED
 
-    // Lấy các đơn hàng
+    // Điều kiện lọc đơn hàng:
+    // Nếu là CLEANER: Chỉ hiển thị các đơn thuộc về công ty/gian hàng mà cleaner đó trực thuộc (user.shopId)
+    // VÀ thuộc 1 trong 2 trường hợp:
+    // 1) Đã được chỉ định trực tiếp cho cleaner này (cleanerId === user.id)
+    // 2) Hoặc đơn chưa có ai nhận (cleanerId === null) trong cùng công ty để cleaner có thể tiếp nhận
+    const whereCondition: Record<string, unknown> = {};
+
+    if (user.role === "CLEANER") {
+      if (user.shopId) {
+        whereCondition.service = { shopId: user.shopId };
+        whereCondition.OR = [
+          { cleanerId: user.id },
+          { cleanerId: null },
+        ];
+      } else {
+        // Nếu cleaner chưa gắn vào công ty nào, chỉ hiển thị đơn được chỉ định riêng cho cleaner đó
+        whereCondition.cleanerId = user.id;
+      }
+    } else if (user.role === "PROVIDER") {
+      // Nếu là PROVIDER xem mục này, lọc theo shop của họ
+      const providerShop = await prisma.shop.findFirst({
+        where: { ownerId: user.id },
+        select: { id: true },
+      });
+      if (providerShop) {
+        whereCondition.service = { shopId: providerShop.id };
+      }
+    }
+
+    // Lấy các đơn hàng phù hợp
     const bookings = await prisma.booking.findMany({
+      where: whereCondition,
       orderBy: { scheduledDate: "asc" },
       include: {
         customer: {

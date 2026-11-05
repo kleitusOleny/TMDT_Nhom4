@@ -7,7 +7,7 @@ import { UserFormModal, UserDetailModal } from "@/src/components/admin/AdminModa
 import { Plus, Search, Edit, Trash2, Ban, Check, ShieldAlert, ArrowUpDown, ArrowUp, ArrowDown, Eye } from "lucide-react";
 
 export default function AdminUsersPage() {
-  const { showToast } = useAdmin();
+  const { showToast, shopsList } = useAdmin();
 
   const [usersList, setUsersList] = useState<UserRecord[]>([]);
   const [roleFilter, setRoleFilter] = useState("ALL");
@@ -413,6 +413,7 @@ export default function AdminUsersPage() {
       {modalOpen && (
         <UserFormModal
           user={editingUser}
+          shops={shopsList}
           onClose={() => {
             setModalOpen(false);
             setEditingUser(null);
