@@ -19,9 +19,12 @@ function createPrismaClient(): PrismaClient {
   });
 }
 
-// Nếu client trong global cache bị cũ và chưa có model userAddress, tự động khởi tạo lại
+// Tự động làm mới PrismaClient khi schema có thay đổi
 export const prisma =
-  globalForPrisma.prisma && (globalForPrisma.prisma as unknown as Record<string, unknown>).userAddress
+  globalForPrisma.prisma &&
+  (globalForPrisma.prisma as unknown as Record<string, unknown>).userAddress &&
+  ((globalForPrisma.prisma as unknown as { _runtimeDataModel?: { models?: { User?: { fields?: { name: string }[] } } } })
+    ._runtimeDataModel?.models?.User?.fields?.some((f) => f.name === "shopId"))
     ? globalForPrisma.prisma
     : createPrismaClient();
 
